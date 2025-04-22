@@ -7,9 +7,12 @@ This software is a real-time stock market dashboard.
 It was designed to help investors, analyst and financial advisors monitor markets, set alerts, and stay informed - all in once place.
 
 Features:
+
+
 Macro Economics
   U.S Economic Indicators (Unemployment, Gas Prices, Retail sales, Car sales) - via FRED
   Major financial secotors overview
+
 
 Micro Economics
   -Enter a ticker and recieve:
