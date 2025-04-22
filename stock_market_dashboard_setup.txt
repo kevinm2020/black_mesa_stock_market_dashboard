@@ -1,0 +1,15 @@
+Setup instructions 
+
+Hi, this is how to run Black Mesa Stock Dashboard on your Machine
+
+Thanks for downloading - Kevin
+
+Run these Commands on your terminal
+
+git clone https://github.com/kevinm2020/black_mesa_stock_market_dashboard.git
+
+cd black_mesa_stock_market_dashboard
+
+pip install -r requirements.txt
+
+streamlit run dashboard.py
