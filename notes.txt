@@ -1,0 +1,3 @@
+with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login("black.mesa.softwar3@gmail.com", "opdj licp cgia ohnw")  # App password is safer than main password
+            smtp.send_message(msg)
