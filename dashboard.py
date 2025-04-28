@@ -18,13 +18,31 @@ from streamlit_autorefresh import st_autorefresh
 from fredapi import Fred    #for economic and social indicators
 from ta.momentum import RSIIndicator
 from twilio.rest import Client
+import threading
+
 
 conn = sqlite3.connect("alerts.db")
 cursor = conn.cursor()
 
-cursor.execute("DROP TABLE IF EXISTS alerts")
+#cursor.execute("DROP TABLE IF EXISTS alerts")
+#cursor.execute("""
+#CREATE TABLE alerts (
+ #   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  #  ticker TEXT,
+   # type TEXT,
+    #threshold REAL,
+    #direction TEXT,
+    #email TEXT,
+    #phone TEXT,
+    #timestamp TEXT,
+    #status TEXT DEFAULT 'pending'
+#)
+#""")
+#conn.commit()
+#print("✅ alerts table created.")
+
 cursor.execute("""
-CREATE TABLE alerts (
+CREATE TABLE IF NOT EXISTS alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker TEXT,
     type TEXT,
@@ -36,7 +54,7 @@ CREATE TABLE alerts (
     status TEXT DEFAULT 'pending'
 )
 """)
-conn.commit()
+
 
 
 ####------------------------------------------------------Send Alerts Function------------------------------
@@ -47,7 +65,7 @@ def send_email_notification(to_email, ticker, alert_type, current_value, thresho
 
         msg = EmailMessage()
         msg["Subject"] = f"📈 {ticker} Alert Triggered!"
-        msg["From"] = "your_email@gmail.com"
+        msg["From"] = "black.mesa.softwar3@gmail.com"
         msg["To"] = to_email
 
         msg.set_content(
@@ -77,11 +95,27 @@ def send_email_notification(to_email, ticker, alert_type, current_value, thresho
 
 #-------------------------------------------Send SMS Function--------------------------------------
 
+account_sid = "ACccee4f046cca24527a11e18fbd652507"
+auth_token = "5d18d25f474eb892d414698206767c02"
+twilio_number = "+18887732224"
+
+def send_sms_notification(to_phone, ticker, alert_type, current_value, threshold):
+    print(f"!!!!!!!  SENDING SMS TO {to_phone}")
+    try:
+        client = Client(account_sid, auth_token)
+        body = "f{ticker} ALERT: {alert_type} triggered.\nValue: {current_value}\nThreshold: {threshold}"
+        message = client.messages.create(
+            body="Your stock alert has been triggered!",
+            from_= twilio_number,
+            to=to_phone
+        )
+        print(f"!!!SMS Sent: {message.sid}")
+    except Exception as e:
+        print(f"!!!SMS Failed: {e}")
 
 
 
-
-
+#-----------------------------------------End SMS Function------------------------------------------
 
 #https://api.stlouisfed.org/fred/series/observations?series_id=UNRATE&api_key=4de30e46287d5d259fd7e0901ef91c59&file_type=json
 
@@ -98,18 +132,21 @@ st_autorefresh(interval=60000, limit=None, key="datarefresh")
 #with style
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-st.markdown("✅ CSS file loaded successfully.")
+
+
 # Page mode toggle
 st.sidebar.title("🔀 Navigation")
-mode = st.sidebar.selectbox("Select Mode:", ["User", "Admin", "401(K) Managment"])
+mode = st.sidebar.selectbox("Select Mode:", ["User", "Admin"])
 
 
 #-----------------------------------------------------------------user mode----------
 
 if mode == "User":
 
-    st.title("BLACK MESA SOFTWARE: Stock Market Dashboard")
-    st.write("by Kevin Martinez")
+    st.title("Stock Market Dashboard")
+    st.write("by BLACK MESA SOFTWAR3")
+    st.write("                                    ")
+    st.write("                                    ")
 
 #--------------------------------------------------------------------Economic Indicators Start-------------------------------
     FRED_API_KEY = "4de30e46287d5d259fd7e0901ef91c59"
@@ -165,7 +202,7 @@ if mode == "User":
     gas_val, gas_delta = get_metric_change(df_gas, "Gas Price")
     car_val, car_delta = get_metric_change(df_car, "Car Sales")
 
-    st.title("U.S Economic Idicators")
+    st.title("🇺🇸 U.S Economic Idicators")
     st.write("Source: Federal Reserve Back of St.Louis (Past 2 Months)")
 
     #display metrics in one row
@@ -190,11 +227,14 @@ if mode == "User":
         st.line_chart(df_gas.set_index("Date")["Gas Price"])
         st.line_chart(df_car.set_index("Date")["Car Sales"])
 
+    st.write("                                    ")
+    st.write("                                    ")
+
 #--------------------------------------------------------------------End Economic Indicators End-------------------------------
 
 #--------------------------------------------------------------------Sector Overview Feature---------------------------------------------------------
 
-    st.title("SECTORS OVERVIEW")
+    st.title("📊 SECTORS OVERVIEW")
     st.write("Watch the sectors")
 
 
@@ -209,7 +249,7 @@ if mode == "User":
     }
 
     # === (U/I) Select Timeframe ========
-    st.title("📈 Sector Performance")
+    st.title("Sector Performance")
 
     period = st.selectbox(
     "Select time range:",
@@ -241,7 +281,7 @@ if mode == "User":
 
     # === (u/i) Display Metrics in Columns ===
 
-    st.subheader(f"📊 Sector Performance Summary ({period})")
+    st.subheader(f"Sector Performance Summary ({period})")
 
     cols = st.columns(len(sector_performance))
 
@@ -272,7 +312,7 @@ if mode == "User":
     top_losers = sorted_df.tail(3)
 
     # Display them side-by-side
-    st.subheader("📊 Sector Movers")
+    st.subheader("Top Sector Movers")
 
     col1, col2 = st.columns(2)
 
@@ -288,7 +328,7 @@ if mode == "User":
 
     # === Sector Trend Comparison Line Chart ==========
 
-    st.subheader("📈 Sector Trend Comparison")
+    st.subheader("Sector Trend Comparison")
 
     # Create a DataFrame to hold sector time series
     sector_trends = pd.DataFrame()
@@ -321,6 +361,10 @@ if mode == "User":
     )
     fig.update_layout(legend_title_text='Sectors')
     st.plotly_chart(fig, use_container_width=True)
+
+    st.write("Source: Yahoo Finance")
+    st.write("                                    ")
+    st.write("                                    ")
     
 #--------------------------------------------------------------------End Sector Overview Feature---------------------------------------------
 
@@ -375,11 +419,15 @@ if mode == "User":
     # Display the chart
     st.plotly_chart(fig)
 
+    st.write("Source: Yahoo Finance")
+    st.write("                                    ")
+    st.write("                                    ")
+
 #-----------------------------------------------------------------------end get stock perfromance(tickers)----------------------
 
 #-------------------------------------------------------------------Single Ticker Evaluation ---------------------------------------------------
     # Title
-    st.title("📈 Ticker")
+    st.title("📈 Single Ticker Evaluation")
     st.write("Get price, news, sentiment, and volume on any ticker")
     
     # User selects a stock
@@ -391,7 +439,7 @@ if mode == "User":
         data = stock.history(period="6mo")  # Adjust the period (e.g., 1d, 1mo, 1y)
 
 #------------------------------------------------------------------------Volume/Price Acticity Feature-----------------------------
-    st.title("📊 Volume/Price Activity")
+    st.title("Volume/Price Activity")
     st.write("Volume and Price Activity for selected Ticker")
 
     #Create a new figure with 2 rows and 1 column
@@ -454,6 +502,9 @@ if mode == "User":
         st.metric("50-Day MA", f"${ma_50:.2f}")
         st.metric("P/E Ratio", f"{pe_ratio}")
 
+    st.write("Source: Yahoo Finance")
+    st.write("                                    ")
+    st.write("                                    ")
 
 
 #---------------------------------------------------Volume Feature end-----------------------------------------
@@ -535,8 +586,9 @@ if mode == "User":
 
     #-------------------------------------------------Analysts Concensus------------------------------
 
-
-    st.title("Analyst Concensus")
+    st.write("                                    ")
+    st.write("                                    ")
+    st.title("🔎 Analyst Concensus")
     st.write("Buy? Hold? Sell? - See what the experts are saying")
     ticker = ticker
 
@@ -568,48 +620,54 @@ if mode == "User":
             with col5:
                 st.metric("❌ Strong Sell", latest['strongSell'])
 
+
+            import plotly.graph_objects as go
+            
+            score = latest['strongBuy'] * 2 + latest['buy'] - latest['sell'] - latest['strongSell']
+
+            fig = go.Figure(go.Indicator(
+                mode = "gauge+number",
+                value = score,
+                title = {'text': f"{ticker.upper()} Sentiment Score"},
+                gauge = {
+                    'axis': {'range': [-10, 10]},
+                    'bar': {'color': "green" if score > 0 else "red"},
+                    'steps': [
+                        {'range': [-10, -5], 'color': "maroon"},
+                        {'range': [-5, 0], 'color': "orange"},
+                        {'range': [0, 5], 'color': "lightgreen"},
+                        {'range': [5, 10], 'color': "green"}
+                    ]
+                }
+            ))
+
+            st.plotly_chart(fig)
+
+            # Interpret the sentiment score
+            if score >= 40:
+                sentiment_label = "🔰 Strong Buy — Analysts are highly bullish."
+            elif score >= 20:
+                sentiment_label = "🟢 Buy — Most analysts lean positive."
+            elif score > -20:
+                sentiment_label = "🟡 Hold — Mixed sentiment or cautious outlook."
+            elif score > -40:
+                sentiment_label = "🔴 Sell — Analysts see downside risk."
+            else:
+                sentiment_label = "⚠️ Strong Sell — Broad consensus to avoid or exit."
+
+            # Display interpretation
+            st.markdown(f"### Analyst Consensus: **{sentiment_label}**")
+
+            st.write("Source: Finhub")
+
         else:
             st.info("No analyst recommendations available.")
     else:
         st.error("Error fetching recommendation data.")
         
+        
 
-    import plotly.graph_objects as go
-
-    score = latest['strongBuy'] * 2 + latest['buy'] - latest['sell'] - latest['strongSell']
-
-    fig = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = score,
-        title = {'text': f"{ticker.upper()} Sentiment Score"},
-        gauge = {
-            'axis': {'range': [-10, 10]},
-            'bar': {'color': "green" if score > 0 else "red"},
-            'steps': [
-                {'range': [-10, -5], 'color': "maroon"},
-                {'range': [-5, 0], 'color': "orange"},
-                {'range': [0, 5], 'color': "lightgreen"},
-                {'range': [5, 10], 'color': "green"}
-            ]
-        }
-    ))
-
-    st.plotly_chart(fig)
-
-     # Interpret the sentiment score
-    if score >= 40:
-        sentiment_label = "🔰 Strong Buy — Analysts are highly bullish."
-    elif score >= 20:
-        sentiment_label = "🟢 Buy — Most analysts lean positive."
-    elif score > -20:
-        sentiment_label = "🟡 Hold — Mixed sentiment or cautious outlook."
-    elif score > -40:
-        sentiment_label = "🔴 Sell — Analysts see downside risk."
-    else:
-        sentiment_label = "⚠️ Strong Sell — Broad consensus to avoid or exit."
-
-    # Display interpretation
-    st.markdown(f"### Analyst Consensus: **{sentiment_label}**")
+    
 
     #-------------------------------------------------Analysyt Consensus Feature End------------------------------
     
@@ -617,6 +675,8 @@ if mode == "User":
     #----------------------------------------------------Price Alert Notification-------------------------------------
     
     #-------------Alert UI-------------------
+    st.write("                                    ")
+    st.write("                                    ")
     st.header("🔔 Create a Stock Alert")
     ticker = st.text_input("Enter Ticker:", "AAPL").upper()
 
@@ -644,7 +704,7 @@ if mode == "User":
     
     #show threshold/direction field only for certain types of alerts
     if alert_type in ["Price Threshold", "R.S.I", "Price/Earnings Ratio"]:
-        direction = st.selectbox("Trigger when value is:", ["Above", "Below"])
+        direction = st.selectbox("Alert when value is:", ["Above", "Below"])
         threshold = st.number_input("Alert if value crosses:", min_value=0.0)
     
     #show email and sms for all alert types
@@ -656,12 +716,16 @@ if mode == "User":
         timestamp = datetime.now().isoformat()
 
         cursor.execute("""
-        INSERT INTO alerts (ticker, type, threshold, email, phone, timestamp, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (ticker, alert_type, threshold, email, phone, timestamp, "pending"))
+        INSERT INTO alerts (ticker, type, threshold, direction, email, phone, timestamp, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (ticker, alert_type, threshold, direction, email, phone, timestamp, "pending"))
 
         conn.commit()
         st.success(f"{alert_type} alert set for {ticker} ({direction or 'N/A'})")
+
+
+    st.write("                                    ")
+    st.write("                                    ")
 
 
     #-------------Alert UI-------------------
@@ -669,21 +733,26 @@ if mode == "User":
 
     
     def check_alerts():
+
+        print(">>> check_alerts() is executing")
+
         cursor.execute("SELECT * FROM alerts WHERE status='pending'")
         alerts = cursor.fetchall()
+        print(f"📋 {len(alerts)} pending alerts found.")
 
         for alert in alerts:
             id, ticker, alert_type, threshold, direction, email, phone, status, timestamp = alert
             stock = yf.Ticker(ticker)
-            data = stock.history(period="6mo")
+            data = stock.history(period="1d", interval="1m")
 
             if data.empty:
+                print("No data found")
                 continue
 
             triggered = False
             current_value = None
             message = ""
-            
+        try:
             if alert_type == "Price Threshold":
                 current_price = data["Close"].iloc[-1]
                 current_value = current_price
@@ -732,7 +801,9 @@ if mode == "User":
                 
                 print(f"✅ Alert triggered for {ticker}: {alert_type} - Current Value: {current_value}")
 
+                #send email
                 if email:
+                    print(f"Sending email to: {email}")
                     send_email_notification(
                         to_email=email,
                         ticker=ticker,
@@ -740,120 +811,80 @@ if mode == "User":
                         current_value=current_value,
                         threshold=f"{direction} {threshold}"
                     )
+                    print(f"email sent to: {email}")
+                
+                if phone:
+                    print(f"Sending SMS to: {phone}")
+                    send_sms_notification(
+                    to_phone=phone,
+                    ticker=ticker,
+                    alert_type=alert_type,
+                    current_value=current_value,
+                    threshold=f"{direction} {threshold}"
+                )
+                print(f"text sent to: {phone}")
 
                 #update DB status to "triggered"
                 cursor.execute("UPDATE alerts SET status='triggered' WHERE id=?", (id,))
                 conn.commit()
                 st.toast(f"Alert send for {ticker} ({alert_type})")
-
+        except Exception as e:
+            print("Error")
         #run check every app refresh        
+
     check_alerts()  
 
+
+#-------------------------------button-------------------------------------------------------------------
+
+    st.subheader("Ready to take the next step in Financial Planning: 401(k), Brokerage, Tax Mitigation, Retirment?")
+    st.write("                   ")
+    if st.button("📅 Book a Free Financial Advisor Consultation"):
+        st.markdown("[Click here to schedule a 15-minute call](https://calendly.com/black-mesa-softwar3)", unsafe_allow_html=True)
+
+
+#-----------------------------Credits------------------------------------------------
+
+    st.write("                                    ")
+    st.write("                                    ")
+    st.subheader("Credits")
+    st.write("Devloped by Kevin Martinez - 2025")
+    st.write("Contact Email : black.mesa.softwar3@gmail.com")
+    
 #----------------------------------------end user mode-------------------------------------------
 
-#----------------------------------401(K) Managment Mode----------------------------------
-
-if mode == "401(K) Managment":
-    st.title = ("💼 401(k) Management Strategies")
-
-    st.subheader("Avoid Common Pitfalls in your Retirment Plan")
-
-    st.markdown("""
-    Many 401(k) plans offer only **pre-selected mutual funds**, which often come with:
-    - ⚠️ **High Expense Ratios**
-    - 📉 **Undeperforming fund managers***
-    - 🔒 **Limited Investment Choices**
-    - 🕵️ Hidden transactions or plan fees
-                
-    These can **erode your retirment returns** over time without you realizing it.
-                """)
-    
-
-    st.subheader("What is the Brokerage Link Tool?")
-    st.markdown("""
-    BrokerageLink is a powerful tool offered inside some 401(k) plans that unlocks:
-    - ✅ Full access to ETFs, index funds, and stocks
-    - 🛠️ Greater custimization of your portfolio
-    - 📊 Better transperancy and control
-                
-    Here's a quick comparison:
-    """)
-
-    # Comparison chart
-    comparison_df = pd.DataFrame({
-        "Feature": ["Fund Choices", "Fees", "Transparency", "Control"],
-        "Traditional 401(k)": ["Limited mutual funds", "High", "Low", "Low"],
-        "With BrokerageLink": ["Thousands of ETFs/stocks", "Low", "High", "Full"]
-    })
-
-    st.table(comparison_df)
-
-    # Optional: Insert a simple chart
-    fee_data = pd.DataFrame({
-        "Year": list(range(1, 11)),
-        "Mutual Fund Fees Lost": [1000 * (1.02)**i for i in range(1, 11)],
-        "BrokerageLink Growth": [1000 * (1.06)**i for i in range(1, 11)]
-    })
-
-    fig = px.line(fee_data, x="Year", y=["Mutual Fund Fees Lost", "BrokerageLink Growth"],
-                  title="The Long-Term Cost of Fees on Retirement Growth")
-    st.plotly_chart(fig)
-
-    # CTA button
-    st.markdown("---")
-    st.markdown("### Ready to take control of your retirement?")
-    if st.button("📞 Connect with a Trusted Fidicuary Financial Advisor Today"):
-        st.markdown("[Schedule a Call](https://yourcalendly.com/link)")
-
-#-----------------------------end 401(K) Managment Mode----------------------------------
-
-elif mode == "Admin":
+#---------------------------------------Start Admin Mode------------------------------------
+if mode == "Admin":
     st.title("🔐 Admin Panel")
 
     admin_key = st.text_input("Enter Admin Access Key:", type="password")
     if admin_key == "blackmesa42":
+
         st.success("Access Granted ✔️")
 
-        # Ensure contacts table exists before querying
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS contacts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT,
-                phone TEXT,
-                timestamp TEXT
-            )
-        ''')
-        conn.commit()
-
-        # Query all contacts from the database
-        cursor.execute("SELECT * FROM contacts")
+        cursor.execute("SELECT * FROM alerts")
         rows = cursor.fetchall()
 
-        # Display contacts if available
-        if rows:
-            columns = ["ID", "Email", "Phone", "Timestamp"]
-            df = pd.DataFrame(rows, columns=columns)
+        columns = ["ID", "Ticker", "Type", "Threshold", "Direction", "Email", "Phone", "Timestamp", "Status"]
 
-            # Show DataFrame in Streamlit
-            st.dataframe(df)
+        df = pd.DataFrame(rows, columns=columns)
 
-            # Convert DataFrame to CSV
-            csv_data = df.to_csv(index=False).encode("utf-8")
+        st.dataframe(df)
 
-            # Allow the admin to download the CSV
-            st.download_button(
-                label="📥 Download Contacts as CSV",
-                data=csv_data,
-                file_name="black_mesa_contacts.csv",
-                mime="text/csv"
-            )
-        else:
-            st.info("No contacts available.")
-    else:
-        if admin_key:
-            st.error("❌ Incorrect Admin Key.")
-
+        # Download CSV
+        csv_data = df.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 Download Alerts CSV", data=csv_data, file_name="alerts.csv", mime="text/csv")
 #-------------------end Admin mode---------------------------
+
+def run_alert_checker():
+    while True:
+        check_alerts()
+        time.sleep(60)
+
+if 'alert_thread' not in st.session_state:
+    st.session_state.alert_thread = threading.Thread(target=run_alert_checker)
+    st.session_state.alert_thread.daemon = True
+    st.session_state.alert_thread.start()
 
 #Terminal Commands
 #activate virtual enviroment: source venv/bin/activate
