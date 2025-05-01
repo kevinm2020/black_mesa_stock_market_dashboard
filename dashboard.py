@@ -146,8 +146,8 @@ if mode == "User":
 
     st.title("Stock Market Dashboard")
     st.write("by BLACK MESA SOFTWAR3")
-    st.write("                                    ")
-    st.write("                                    ")
+    st.write("Last Fix: May 1 at 11:41AM CT")
+   
 
 #--------------------------------------------------------------------Economic Indicators Start-------------------------------
     FRED_API_KEY = "4de30e46287d5d259fd7e0901ef91c59"
@@ -228,8 +228,6 @@ if mode == "User":
         st.line_chart(df_gas.set_index("Date")["Gas Price"])
         st.line_chart(df_car.set_index("Date")["Car Sales"])
 
-    st.write("                                    ")
-    st.write("                                    ")
 
 #--------------------------------------------------------------------End Economic Indicators End-------------------------------
 
@@ -356,6 +354,8 @@ if mode == "User":
     st.write("Here are the top 10 best-performing stocks of today based on percentage change:")
     tickers = ['AAPL', 'TSLA', 'AMZN', 'GOOGL', 'MSFT', 'SPY', 'NFLX', 'NVDA', 'META', 'AMD']
 
+    print("data to be cached")
+
     # Cache the stock performance function to reduce API calls
     @st.cache_data(ttl=600)  # Cache results for 10 minutes
 
@@ -367,6 +367,12 @@ if mode == "User":
             for ticker in tickers:
                 try:
                     df = data[ticker]
+
+                    if df is None or df.empty:
+                        st.error(f"Could not fetch data for {ticker}")
+                        print(f"line 373 error")
+                        continue
+                    
                     open_price = df['Open'].iloc[0]
                     close_price = df['Close'].iloc[-1]
                     percent_change = ((close_price - open_price) / open_price) * 100
@@ -377,6 +383,7 @@ if mode == "User":
                         'Close': close_price,
                         'Percent Change': percent_change
                     })
+
                 except Exception as e:
                     st.warning(f"⚠️ Could not process {ticker}: {e}")
 
@@ -411,83 +418,71 @@ if mode == "User":
     # Title
     st.title("📈 Single Ticker Evaluation")
     st.write("Get price, news, sentiment, and volume on any ticker")
-    
-    # User selects a stock
+
     ticker = st.text_input("Enter Stock Ticker:", "AAPL")
 
-     # Fetch stock data
+    # Wrapped in try-except to handle bad requests
+    @st.cache_data(ttl=600)
+    def get_ticker_data(ticker):
+        try:
+            stock = yf.Ticker(ticker)
+            data = stock.history(period="1y")
+            info = stock.info
+            return data, info
+        except Exception as e:
+            return None, None
+
     if ticker:
-        stock = yf.Ticker(ticker)
-        data = stock.history(period="6mo")  # Adjust the period (e.g., 1d, 1mo, 1y)
+        data, info = get_ticker_data(ticker)
 
-#------------------------------------------------------------------------Volume/Price Acticity Feature-----------------------------
-    st.title("Volume/Price Activity")
-    st.write("Volume and Price Activity for selected Ticker")
+        if data is None or data.empty:
+            st.error(f"❌ Could not fetch data for {ticker}. It may be an invalid ticker or Yahoo is rate-limiting.")
+        else:
+            st.title("Volume/Price Activity")
+            st.write("Volume and Price Activity for selected Ticker")
 
-    #Create a new figure with 2 rows and 1 column
-    #shared_axes=True means both charts share the same x-axis(time)
-    #vertical_spacing=0.1 sets the space bewteen the charts
-    #subplot_titles defines titles for each subplot
-    fig = make_subplots(
-                        rows=2, cols=1, 
-                        shared_xaxes=True,
-                        vertical_spacing=0.1,
-                        subplot_titles=(f"{ticker} Closing Price", f"{ticker} Volume"))
-                        #one chart is price                      #other chart is volume
+            fig = make_subplots(
+                rows=2, cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.1,
+                subplot_titles=(f"{ticker} Closing Price", f"{ticker} Volume"))
 
-    # Price line (first row  row=1, col=1)
-    fig.add_trace(go.Scatter(x=data.index, y=data['Close'], name='Price'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['Close'], name='Price'), row=1, col=1)
+            fig.add_trace(go.Bar(x=data.index, y=data['Volume'], name='Volume'), row=2, col=1)
 
-    # Volume bar (second row = 2, col=1)
-    fig.add_trace(go.Bar(x=data.index, y=data['Volume'], name='Volume'), row=2, col=1)
+            fig.update_layout(
+                height=800,
+                title_text=f"{ticker} Price & Volume"
+            )
 
-    #update overall layout of chart
-    fig.update_layout(
-        height=800,                                 #height of figure in pixels
-        title_text=f"{ticker} Price & Volume"       #main chart title
-        )
+            col1, col2 = st.columns([2, 1])
 
-    col1, col2 = st.columns([2,1])  #2:1 width ratio
+            with col1:
+                st.plotly_chart(fig, use_container_width=True)
 
-    #left column : Price Volume Chart
-    #render chart in Streamlit
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.subheader("📍 Key Indicators")
+            with col2:
+                st.subheader("📍 Key Indicators")
 
-        # Current Market Price
-        current_price = data["Close"].iloc[-1]
+                try:
+                    current_price = data["Close"].iloc[-1]
+                    rsi = RSIIndicator(data["Close"]).rsi().iloc[-1]
+                    latest_volume = data["Volume"].iloc[-1]
+                    ma_50 = data["Close"].rolling(window=50).mean().iloc[-1]
+                    ma_200 = data["Close"].rolling(window=200).mean().iloc[-1]
 
-        # RSI (Relative Strength Index)
-        rsi = RSIIndicator(data["Close"]).rsi().iloc[-1]
+                    pe_ratio = info.get("trailingPE", "N/A") if info else "N/A"
+                    beta = info.get("beta", "N/A") if info else "N/A"
 
-        # Volume
-        latest_volume = data["Volume"].iloc[-1]
+                    st.metric("Price", f"${current_price:.2f}")
+                    st.metric("RSI", f"{rsi:.2f}")
+                    st.metric("Volume", f"{latest_volume:,}")
+                    st.metric("Beta", f"{beta}")
+                    st.metric("50-Day MA", f"${ma_50:.2f}")
+                    st.metric("P/E Ratio", f"{pe_ratio}")
+                except Exception as e:
+                    st.warning(f"⚠️ Error calculating indicators: {e}")
 
-        # 50-day and 200-day Moving Averages
-        ma_50 = data["Close"].rolling(window=50).mean().iloc[-1]
-        ma_200 = data["Close"].rolling(window=200).mean().iloc[-1]
-
-        # Get extra info from yfinance
-        info = stock.info
-        pe_ratio = info.get("trailingPE", "N/A")
-        beta = info.get("beta", "N/A")
-        alpha = "N/A"  # alpha typically not available via yfinance
-
-        # Show metrics
-        st.metric("Price", f"${current_price:.2f}")
-        st.metric("RSI", f"{rsi:.2f}")
-        st.metric("Volume", f"{latest_volume:,}")
-        st.metric("Beta", f"{beta}")
-        st.metric("50-Day MA", f"${ma_50:.2f}")
-        st.metric("P/E Ratio", f"{pe_ratio}")
-
-    st.write("Source: Yahoo Finance")
-    st.write("                                    ")
-    st.write("                                    ")
-
+            st.write("Source: Yahoo Finance")
 
 #---------------------------------------------------Volume Feature end-----------------------------------------
 
