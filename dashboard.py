@@ -147,7 +147,7 @@ if mode == "User":
 
     st.title("Stock Market Dashboard")
     st.write("by BLACK MESA SOFTWAR3")
-    st.write("Last Fix: May 1 at 12:47PM CT")
+    st.write("Last Fix: May 1 at 01:08PM CT")
    
 
 #--------------------------------------------------------------------Economic Indicators Start-------------------------------
@@ -239,194 +239,184 @@ if mode == "User":
     st.title("📊 SECTORS OVERVIEW")
     st.write("Watch the sectors")
 
-    # === Sector Tickers ===
-    sector_tickers = {
-        "Technology": ["AAPL", "MSFT", "NVDA"],
-        "Consumer Discretionary": ["TSLA", "AMZN"],
-        "Financials": ["JPM", "BAC"],
-        "Energy": ["XOM", "CVX"],
-        "Healthcare": ["JNJ", "PFE"],
-        "Industrials": ["BA", "CAT"],
-    }
+        # Sector to tickers mapping
+    def get_all_data(tickers, period):
 
-    # === UI: Select Timeframe ===
-    st.subheader("Sector Performance")
-    period = st.selectbox("Select time range:", ["1y", "5y", "10y"], index=0)
-
-    # === Flatten ticker list and download data in batch ===
-    all_tickers = [ticker for tickers in sector_tickers.values() for ticker in tickers]
-    try:
-        all_data = yf.download(all_tickers, period=period, group_by='ticker', progress=False)
-        # Add random delay between requests
-        time.sleep(random.uniform(1.5, 3.0))  # wait 1.5 to 3 sec
-    except Exception as e:
-        st.error(f"Failed to download data: {e}")
-        st.stop()
-
-    # === Sector Performance Calculation ===
-    sector_performance = []
-    for sector, tickers in sector_tickers.items():
-        changes = []
-        for ticker in tickers:
-            try:
-                data = all_data[ticker]
-                if not data.empty:
-                    open_price = data["Open"].iloc[0]
-                    close_price = data["Close"].iloc[-1]
-                    change = ((close_price - open_price) / open_price) * 100
-                    changes.append(change)
-            except Exception as e:
-                st.warning(f"Error for {ticker}: {e}")
-        if changes:
-            avg_change = round(sum(changes) / len(changes), 2)
-            sector_performance.append({"Sector": sector, "Change": avg_change})
-
-    # === Summary Metrics Display ===
-    st.subheader(f"Sector Performance Summary ({period})")
-    cols = st.columns(max(len(sector_performance), 1))
-
-    for i, sector_data in enumerate(sector_performance):
-        change = sector_data["Change"]
-        emoji = "📈" if change > 0 else "📉"
-        formatted_change = f"{change:+.2f}%"
-        cols[i].metric(
-            label=f"{emoji} {sector_data['Sector']}",
-            value=formatted_change,
-            delta=formatted_change
-        )
-
-    # === Top 3 Gainers and Losers ===
-    df = pd.DataFrame(sector_performance)
-    if not df.empty and "Change" in df.columns:
-        sorted_df = df.sort_values("Change", ascending=False)
-        top_gainers = sorted_df.head(3)
-        top_losers = sorted_df.tail(3)
-
-        st.subheader("Top Sector Movers")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("### 📈 Top 3 Gainers")
-            for _, row in top_gainers.iterrows():
-                st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
-
-        with col2:
-            st.markdown("### 📉 Top 3 Losers")
-            for _, row in top_losers.iterrows():
-                st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
-    else:
-        st.warning("No sector performance data available.")
-
-    # === Line Chart: Sector Trends Over Time ===
-    st.subheader("Sector Trend Comparison")
-    sector_trends = pd.DataFrame()
-
-    for sector, tickers in sector_tickers.items():
-        sector_prices = pd.DataFrame()
-        for ticker in tickers:
-            try:
-                data = all_data[ticker]["Close"]
-                sector_prices[ticker] = data
-            except:
-                continue
-        if not sector_prices.empty:
-            normalized = sector_prices / sector_prices.iloc[0] * 100
-            sector_trends[sector] = normalized.mean(axis=1)
-
-    # === Plot Sector Trends ===
-    if not sector_trends.empty:
-        fig = px.line(
-            sector_trends,
-            x=sector_trends.index,
-            y=sector_trends.columns,
-            title=f"📈 Sector Performance Over {period.upper()}",
-            labels={"value": "Normalized Price", "index": "Date", "variable": "Sector"},
-        )
-        fig.update_layout(legend_title_text="Sectors")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No sector trend data available.")
-
-    st.caption("Source: Yahoo Finance via yfinance")
-
-#--------------------------------------------------------------------End Sector Overview Feature---------------------------------------------
-
-#------------------------------------------------------------------Top 5 Best Best Performing Stock Today------------------
-
-    st.title("🏅 Top 10 Best Performing Stocks Today")
-    st.write("Here are the top 10 best-performing stocks of today based on percentage change:")
-    tickers = ['AAPL', 'TSLA', 'AMZN', 'GOOGL', 'MSFT', 'SPY', 'NFLX', 'NVDA', 'META', 'AMD']
-
-    print("data to be cached")
-
-    # Cache the stock performance function to reduce API calls
-    @st.cache_data(ttl=600)  # Cache results for 10 minutes
-
-    def get_stock_performance(tickers):
+        """
+        Batch download stock data for given tickers and period.
+        Cached to avoid repeated API calls within 10 minutes.
+        """
         try:
-            data = yf.download(tickers, period="1d", group_by='ticker', auto_adjust=False, threads=True)
-            # Add random delay between requests
-            time.sleep(random.uniform(1.5, 3.0))  # wait 1.5 to 3 sec
-            stock_performance = []
+            data = yf.download(
+                tickers,
+                period=period,
+                group_by='ticker',
+                progress=False,
+                threads=True
+            )
+            # Small delay to respect rate limits (though batch helps)
+            time.sleep(random.uniform(1.5, 3.0))
+            return data
+        except Exception as e:
+            st.error(f"Failed to download sector data: {e}")
+            return pd.DataFrame()
 
+    # UI: Select timeframe
+    def sector_overview():
+        sector_tickers = {
+            "Technology": ["AAPL", "MSFT", "NVDA"],
+            "Consumer Discretionary": ["TSLA", "AMZN"],
+            "Financials": ["JPM", "BAC"],
+            "Energy": ["XOM", "CVX"],
+            "Healthcare": ["JNJ", "PFE"],
+            "Industrials": ["BA", "CAT"]
+        }
+        st.subheader("Sector Performance")
+        period = st.selectbox("Select time range:", ["1y", "5y", "10y"], index=0)
+        all_tickers = [t for ticks in sector_tickers.values() for t in ticks]
+
+        # Fetch data with spinner
+        with st.spinner("Loading sector data..."):
+            all_data = get_all_data(all_tickers, period)
+
+        # Calculate average change per sector
+        sector_performance = []
+        for sector, tickers in sector_tickers.items():
+            changes = []
             for ticker in tickers:
                 try:
-                    df = data[ticker]
-
+                    df = all_data.get(ticker)
                     if df is None or df.empty:
-                        st.error(f"Could not fetch data for {ticker}")
-                        print(f"line 373 error")
+                        st.warning(f"No data for {ticker}")
                         continue
-                    
                     open_price = df['Open'].iloc[0]
                     close_price = df['Close'].iloc[-1]
-                    percent_change = ((close_price - open_price) / open_price) * 100
-
-                    stock_performance.append({
-                        'Ticker': ticker,
-                        'Open': open_price,
-                        'Close': close_price,
-                        'Percent Change': percent_change
-                    })
-
+                    changes.append((close_price - open_price) / open_price * 100)
                 except Exception as e:
-                    st.warning(f"⚠️ Could not process {ticker}: {e}")
+                    st.warning(f"Error processing {ticker}: {e}")
+            if changes:
+                sector_performance.append({
+                    'Sector': sector,
+                    'Change': round(sum(changes) / len(changes), 2)
+                })
 
-            return stock_performance
+        # Display summary metrics
+        st.subheader(f"Sector Performance Summary ({period})")
+        cols = st.columns(max(len(sector_performance), 1))
+        for i, data in enumerate(sector_performance):
+            emoji = "📈" if data['Change'] > 0 else "📉"
+            formatted = f"{data['Change']:+.2f}%"
+            cols[i].metric(
+                label=f"{emoji} {data['Sector']}",
+                value=formatted,
+                delta=formatted
+            )
 
+        # Top 3 movers
+        df_perf = pd.DataFrame(sector_performance)
+        if not df_perf.empty and 'Change' in df_perf.columns:
+            sorted_df = df_perf.sort_values('Change', ascending=False)
+            top_gainers = sorted_df.head(3)
+            top_losers = sorted_df.tail(3)
+
+            st.subheader("Top Sector Movers")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("### 📈 Top 3 Gainers")
+                for _, row in top_gainers.iterrows():
+                    st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
+            with c2:
+                st.markdown("### 📉 Top 3 Losers")
+                for _, row in top_losers.iterrows():
+                    st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
+        else:
+            st.warning("No sector performance data available.")
+
+        # Trend comparison
+        st.subheader("Sector Trend Comparison")
+        trends = pd.DataFrame()
+        for sector, tickers in sector_tickers.items():
+            prices = pd.DataFrame()
+            for ticker in tickers:
+                try:
+                    close = all_data.get(ticker)['Close']
+                    prices[ticker] = close
+                except:
+                    continue
+            if not prices.empty:
+                normalized = prices / prices.iloc[0] * 100
+                trends[sector] = normalized.mean(axis=1)
+        if not trends.empty:
+            fig = px.line(
+                trends, x=trends.index, y=trends.columns,
+                title=f"Sector Performance Over {period.upper()}",
+                labels={'value': 'Normalized Price', 'index': 'Date', 'variable': 'Sector'}
+            )
+            fig.update_layout(legend_title_text='Sectors', template='plotly_white')
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No sector trend data available.")
+
+    # Run Sector Overview
+    sector_overview()
+
+    # ---------------- Top 10 Stocks Feature ----------------
+    st.title("🏅 Top 10 Best Performing Stocks Today")
+    st.write("Here are the top 10 best-performing stocks based on today's percentage change.")
+
+    @st.cache_data(ttl=600)
+    def get_stock_performance(tickers):
+        """
+        Batch fetch 1-day performance for tickers and calculate percent change.
+        """
+        try:
+            data = yf.download(
+                tickers, period="1d", group_by='ticker', progress=False, threads=True
+            )
+            time.sleep(random.uniform(1.5, 3.0))
         except Exception as e:
-            st.error(f"🚫 Failed to fetch stock data: {e}")
+            st.error(f"Failed fetching top stocks data: {e}")
             return []
 
-    # Fetch and sort data
-    top_performance = get_stock_performance(tickers)
+        perf = []
+        for ticker in tickers:
+            try:
+                df = data.get(ticker)
+                if df is None or df.empty:
+                    st.warning(f"No data for {ticker}")
+                    continue
+                open_p = df['Open'].iloc[0]
+                close_p = df['Close'].iloc[-1]
+                change = (close_p - open_p) / open_p * 100
+                perf.append({'Ticker': ticker, 'Percent Change': round(change, 2)})
+            except Exception as e:
+                st.warning(f"Error for {ticker}: {e}")
+        return perf
 
-    if not top_performance:
-        st.error("No stock data could be retrieved at this time. Please try again later.")
+    tickers = ['AAPL', 'TSLA', 'AMZN', 'GOOGL', 'MSFT', 'SPY', 'NFLX', 'NVDA', 'META', 'AMD']
+    with st.spinner("Loading top stock performance..."):
+        performance = get_stock_performance(tickers)
+
+    if performance:
+        df_top = pd.DataFrame(sorted(performance, key=lambda x: x['Percent Change'], reverse=True)[:10])
+        fig2 = px.bar(
+            df_top, x='Ticker', y='Percent Change',
+            title="Top 10 Best Performing Stocks Today",
+            labels={'Percent Change': 'Percentage Change (%)'},
+            color='Percent Change', color_continuous_scale='Viridis'
+        )
+        fig2.update_layout(template='plotly_white')
+        st.plotly_chart(fig2, use_container_width=True)
     else:
-        sorted_performance = sorted(top_performance, key=lambda x: x['Percent Change'], reverse=True)
-        df_top = pd.DataFrame(sorted_performance[:10])
+        st.error("No stock performance data available.")
 
-        fig = px.bar(df_top, x='Ticker', y='Percent Change',
-                    title="Top 10 Best Performing Stocks Today",
-                    labels={'Percent Change': 'Percentage Change (%)', 'Ticker': 'Stock Ticker'},
-                    color='Percent Change',
-                    color_continuous_scale='Viridis')
+    st.caption("Source: Yahoo Finance")
 
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.write("Source: Yahoo Finance")
-
-#-----------------------------------------------------------------------end get stock perfromance(tickers)----------------------
-
-#-------------------------------------------------------------------Single Ticker Evaluation ---------------------------------------------------
-    # Title
+    # ---------------- Single Ticker Evaluation ----------------
     st.title("📈 Single Ticker Evaluation")
     st.write("Get price, news, sentiment, and volume on any ticker")
 
-    ticker = st.text_input("Enter Stock Ticker:", "AAPL")
-
-    # Wrapped in try-except to handle bad requests
+    'ticker' in globals() or st.cache_data
     @st.cache_data(ttl=600)
     def get_ticker_data(ticker):
         try:
@@ -434,60 +424,49 @@ if mode == "User":
             data = stock.history(period="1y")
             info = stock.info
             return data, info
-        except Exception as e:
+        except Exception:
             return None, None
 
-    if ticker:
-        data, info = get_ticker_data(ticker)
+    user_ticker = st.text_input("Enter Stock Ticker:", "AAPL")
+    if user_ticker:
+        with st.spinner(f"Loading data for {user_ticker}..."):
+            data, info = get_ticker_data(user_ticker)
 
         if data is None or data.empty:
-            st.error(f"❌ Could not fetch data for {ticker}. It may be an invalid ticker or Yahoo is rate-limiting.")
+            st.error(f"Could not fetch data for {user_ticker}. Please check the ticker or try again later.")
         else:
-            st.title("Volume/Price Activity")
-            st.write("Volume and Price Activity for selected Ticker")
-
-            fig = make_subplots(
-                rows=2, cols=1,
-                shared_xaxes=True,
-                vertical_spacing=0.1,
-                subplot_titles=(f"{ticker} Closing Price", f"{ticker} Volume"))
-
-            fig.add_trace(go.Scatter(x=data.index, y=data['Close'], name='Price'), row=1, col=1)
-            fig.add_trace(go.Bar(x=data.index, y=data['Volume'], name='Volume'), row=2, col=1)
-
-            fig.update_layout(
-                height=800,
-                title_text=f"{ticker} Price & Volume"
-            )
+            st.subheader(f"{user_ticker} Price & Volume Activity")
+            fig3 = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                vertical_spacing=0.1,
+                                subplot_titles=("Closing Price", "Volume"))
+            fig3.add_trace(go.Scatter(x=data.index, y=data['Close'], name='Price'), row=1, col=1)
+            fig3.add_trace(go.Bar(x=data.index, y=data['Volume'], name='Volume'), row=2, col=1)
+            fig3.update_layout(height=700, template='plotly_white')
 
             col1, col2 = st.columns([2, 1])
-
             with col1:
-                st.plotly_chart(fig, use_container_width=True)
-
+                st.plotly_chart(fig3, use_container_width=True)
             with col2:
                 st.subheader("📍 Key Indicators")
-
                 try:
-                    current_price = data["Close"].iloc[-1]
-                    rsi = RSIIndicator(data["Close"]).rsi().iloc[-1]
-                    latest_volume = data["Volume"].iloc[-1]
-                    ma_50 = data["Close"].rolling(window=50).mean().iloc[-1]
-                    ma_200 = data["Close"].rolling(window=200).mean().iloc[-1]
+                    price = data['Close'].iloc[-1]
+                    rsi = RSIIndicator(data['Close']).rsi().iloc[-1]
+                    vol = data['Volume'].iloc[-1]
+                    ma50 = data['Close'].rolling(50).mean().iloc[-1]
+                    ma200 = data['Close'].rolling(200).mean().iloc[-1]
+                    pe = info.get('trailingPE', 'N/A') if info else 'N/A'
+                    beta = info.get('beta', 'N/A') if info else 'N/A'
 
-                    pe_ratio = info.get("trailingPE", "N/A") if info else "N/A"
-                    beta = info.get("beta", "N/A") if info else "N/A"
-
-                    st.metric("Price", f"${current_price:.2f}")
+                    st.metric("Price", f"${price:.2f}")
                     st.metric("RSI", f"{rsi:.2f}")
-                    st.metric("Volume", f"{latest_volume:,}")
-                    st.metric("Beta", f"{beta}")
-                    st.metric("50-Day MA", f"${ma_50:.2f}")
-                    st.metric("P/E Ratio", f"{pe_ratio}")
+                    st.metric("Volume", f"{vol:,}")
+                    st.metric("50-Day MA", f"${ma50:.2f}")
+                    st.metric("200-Day MA", f"${ma200:.2f}")
+                    st.metric("P/E Ratio", pe)
+                    st.metric("Beta", beta)
                 except Exception as e:
-                    st.warning(f"⚠️ Error calculating indicators: {e}")
-
-            st.write("Source: Yahoo Finance")
+                    st.warning(f"Error calculating indicators: {e}")
+            st.caption("Source: Yahoo Finance via yfinance")
 
 #---------------------------------------------------Volume Feature end-----------------------------------------
 
@@ -501,7 +480,7 @@ if mode == "User":
     st.title("📰 Stock News")
 
     # Let user pick a ticker or reuse one they've searched
-    news_ticker = ticker
+    news_ticker = user_ticker
 
     if news_ticker:
         st.write(f"Latest news for **{news_ticker.upper()}**")
@@ -572,7 +551,7 @@ if mode == "User":
     st.write("                                    ")
     st.title("🔎 Analyst Concensus")
     st.write("Buy? Hold? Sell? - See what the experts are saying")
-    ticker = ticker
+    ticker = user_ticker
 
     FINNHUB_API_KEY = "cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80"
 
