@@ -238,6 +238,7 @@ if mode == "User":
     st.write("Watch the sectors")
 
 
+
     # === Sector Tickers (where we get the sector information) === #
     sector_tickers = {
         "Technology": ["AAPL", "MSFT", "NVDA"],
@@ -253,15 +254,16 @@ if mode == "User":
 
     period = st.selectbox(
     "Select time range:",
-    ["1mo", "3mo", "6mo", "1y", "5y", "10y"],
-    index=3  # this sets "1y" as the default
+    ["1mo", "1y", "5y", "10y"],
+    index=0  # this sets "1m" as the default
     )
 
 
     # === (logic) Collect Performance Data ===
 
-    sector_performance = []
 
+
+    sector_performance = []
     for sector, tickers in sector_tickers.items():
         changes = []
         for ticker in tickers:
@@ -273,17 +275,21 @@ if mode == "User":
                     close_price = data["Close"].iloc[-1]
                     change = ((close_price - open_price) / open_price) * 100
                     changes.append(change)
-            except:
+            except Exception as e:
+                print(f"Error fetching data for {ticker}: {e}")                                 #adjust made here ("atleast it annouces the error")
                 continue
         if changes:
             avg_change = round(sum(changes) / len(changes), 2)
             sector_performance.append({"Sector": sector, "Change": avg_change})
+    
+
 
     # === (u/i) Display Metrics in Columns ===
 
     st.subheader(f"Sector Performance Summary ({period})")
 
-    cols = st.columns(len(sector_performance))
+    cols = st.columns(max(len(sector_performance), 1))  # Fallback to 1 column if empty
+
 
     for i, sector_data in enumerate(sector_performance):
 
@@ -746,7 +752,7 @@ if mode == "User":
             data = stock.history(period="1d", interval="1m")
 
             if data.empty:
-                print("No data found")
+                print("No data found for {ticker}")
                 continue
 
             triggered = False
@@ -850,6 +856,7 @@ if mode == "User":
     st.subheader("Credits")
     st.write("Devloped by Kevin Martinez - 2025")
     st.write("Contact Email : black.mesa.softwar3@gmail.com")
+    st.write("Last Fix: April 30/25 11:09PM CT")
     
 #----------------------------------------end user mode-------------------------------------------
 
@@ -890,3 +897,10 @@ if 'alert_thread' not in st.session_state:
 #activate virtual enviroment: source venv/bin/activate
 #run the program: streamlit run dashboard.py
 #testing logic python dashboard.py
+
+"""
+
+Versiion 1.0 
+Last Update: April 30 - 2025  at 10:57pm CT  
+
+"""
