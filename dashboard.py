@@ -15,6 +15,7 @@ import time
 import requests #for the news feature
 import sqlite3          #databse alerts?
 from streamlit_autorefresh import st_autorefresh
+
 from fredapi import Fred    #for economic and social indicators
 from ta.momentum import RSIIndicator
 from twilio.rest import Client
@@ -128,7 +129,7 @@ st_autorefresh(interval=60000, limit=None, key="datarefresh")
 
 
 #FRONT END OFFICES
-
+s
 #with style
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -234,12 +235,12 @@ if mode == "User":
 
 #--------------------------------------------------------------------Sector Overview Feature---------------------------------------------------------
 
+    #--------------------------------------------------------------------Sector Overview Feature---------------------------------------------------------
+
     st.title("📊 SECTORS OVERVIEW")
     st.write("Watch the sectors")
 
-
-
-    # === Sector Tickers (where we get the sector information) === #
+    # === Sector Tickers ===
     sector_tickers = {
         "Technology": ["AAPL", "MSFT", "NVDA"],
         "Consumer Discretionary": ["TSLA", "AMZN"],
@@ -249,153 +250,104 @@ if mode == "User":
         "Industrials": ["BA", "CAT"],
     }
 
-    # === (U/I) Select Timeframe ========
-    st.title("Sector Performance")
+    # === UI: Select Timeframe ===
+    st.subheader("Sector Performance")
+    period = st.selectbox("Select time range:", ["1y", "5y", "10y"], index=0)
 
-    period = st.selectbox(
-    "Select time range:",
-    ["1d", "5d", "1mo", "3mo", "6mo", "1y", "5y", "10y"],
-    index=1  # this sets "1d" as the default
-    )
+    # === Flatten ticker list and download data in batch ===
+    all_tickers = [ticker for tickers in sector_tickers.values() for ticker in tickers]
+    try:
+        all_data = yf.download(all_tickers, period=period, group_by='ticker', progress=False)
+    except Exception as e:
+        st.error(f"Failed to download data: {e}")
+        st.stop()
 
-    # === (logic) Collect Performance Data ===
-
+    # === Sector Performance Calculation ===
     sector_performance = []
-
     for sector, tickers in sector_tickers.items():
         changes = []
         for ticker in tickers:
             try:
-                stock = yf.Ticker(ticker)
-                data = stock.history(period=period)
-                time.sleep(1)     #proccess data , buffer
+                data = all_data[ticker]
                 if not data.empty:
                     open_price = data["Open"].iloc[0]
                     close_price = data["Close"].iloc[-1]
                     change = ((close_price - open_price) / open_price) * 100
                     changes.append(change)
             except Exception as e:
-                print(f"Error fetching data for {ticker}: {e}")                                 #adjust made here ("atleast it annouces the error")
-                continue
+                st.warning(f"Error for {ticker}: {e}")
         if changes:
             avg_change = round(sum(changes) / len(changes), 2)
             sector_performance.append({"Sector": sector, "Change": avg_change})
 
-
-    # === (u/i) Display Metrics in Columns ===
-
+    # === Summary Metrics Display ===
     st.subheader(f"Sector Performance Summary ({period})")
-
-    cols = st.columns(max(len(sector_performance), 1))  # Fallback to 1 column if empty
-
+    cols = st.columns(max(len(sector_performance), 1))
 
     for i, sector_data in enumerate(sector_performance):
-
-        change = sector_data["Change"]                              #display positive or negative change within sectors
+        change = sector_data["Change"]
         emoji = "📈" if change > 0 else "📉"
-
-        # Round just once and reuse
         formatted_change = f"{change:+.2f}%"
-
         cols[i].metric(
             label=f"{emoji} {sector_data['Sector']}",
             value=formatted_change,
             delta=formatted_change
         )
 
-
-    # === SECTOR MOVERS (TOP 3 WINNERS/LOSERS SECTORS) ===
-    
-    #try block for protection
+    # === Top 3 Gainers and Losers ===
     df = pd.DataFrame(sector_performance)
-    # Clean column names by stripping whitespace
-  
+    if not df.empty and "Change" in df.columns:
+        sorted_df = df.sort_values("Change", ascending=False)
+        top_gainers = sorted_df.head(3)
+        top_losers = sorted_df.tail(3)
 
-    if 'Change' in df.columns:
+        st.subheader("Top Sector Movers")
+        col1, col2 = st.columns(2)
 
-        st.write("Change Column Activated")
-        print("Change Column Activated")
-        
-        try:
-            # Sort by % change
-            sorted_df = df.sort_values("Change", ascending=False)
+        with col1:
+            st.markdown("### 📈 Top 3 Gainers")
+            for _, row in top_gainers.iterrows():
+                st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
 
-            # Split into Top 3 Gainers and Top 3 Losers
-            top_gainers = sorted_df.head(3)
-            top_losers = sorted_df.tail(3)
-
-
-            
-            # Display them side-by-side
-            st.subheader("Top Sector Movers")
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.markdown("### 📈 Top 3 Gainers")
-                for _, row in top_gainers.iterrows():
-                    st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
-
-            with col2:
-                st.markdown("### 📉 Top 3 Losers")
-                for _, row in top_losers.iterrows():
-                    st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
-
-            # === Sector Trend Comparison Line Chart ==========
-
-            st.subheader("Sector Trend Comparison")
-
-            # Create a DataFrame to hold sector time series
-            sector_trends = pd.DataFrame()
-
-            # Loop again to fetch time-series data per sector
-            for sector, tickers in sector_tickers.items():
-                sector_prices = pd.DataFrame()
-
-                for ticker in tickers:
-                    try:
-                        stock = yf.Ticker(ticker)
-                        data = stock.history(period=period)
-                        if not data.empty:
-                            sector_prices[ticker] = data["Close"]
-                    except:
-                        continue
-
-                if not sector_prices.empty:
-                    # Normalize to 100 for comparability
-                    normalized = sector_prices / sector_prices.iloc[0] * 100
-                    sector_trends[sector] = normalized.mean(axis=1)  # average of tickers
-
-            # Plot
-            fig = px.line(
-                sector_trends,
-                x=sector_trends.index,
-                y=sector_trends.columns,
-                title=f"📈 Sector Performance Over {period.upper()}",
-                labels={"value": "Normalized Price", "index": "Date", "variable": "Sector"},
-            )
-            fig.update_layout(legend_title_text='Sectors')
-            st.plotly_chart(fig, use_container_width=True)
-
-            st.write("Source: Yahoo Finance")
-            st.write("                                    ")
-
-        except Exception as e:
-            print(f"An unexpected error occurred during sorting: {e}")
-            st.error(f"Error processing sector performance: {e}")
-            sorted_df = pd.DataFrame()
-            top_gainers = pd.DataFrame()
-            top_losers = pd.DataFrame()
-        except KeyError as e:
-            print(f"KeyError: {e}. Available columns are: {df.columns.tolist()}")
-
+        with col2:
+            st.markdown("### 📉 Top 3 Losers")
+            for _, row in top_losers.iterrows():
+                st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
     else:
-        st.warning("'Change' column not found in sector performance data.")
-        sorted_df = pd.DataFrame()
-        top_gainers = pd.DataFrame()
-        top_losers = pd.DataFrame()
-        print(f"Available columns: {df.columns.tolist()}")
-    
+        st.warning("No sector performance data available.")
+
+    # === Line Chart: Sector Trends Over Time ===
+    st.subheader("Sector Trend Comparison")
+    sector_trends = pd.DataFrame()
+
+    for sector, tickers in sector_tickers.items():
+        sector_prices = pd.DataFrame()
+        for ticker in tickers:
+            try:
+                data = all_data[ticker]["Close"]
+                sector_prices[ticker] = data
+            except:
+                continue
+        if not sector_prices.empty:
+            normalized = sector_prices / sector_prices.iloc[0] * 100
+            sector_trends[sector] = normalized.mean(axis=1)
+
+    # === Plot Sector Trends ===
+    if not sector_trends.empty:
+        fig = px.line(
+            sector_trends,
+            x=sector_trends.index,
+            y=sector_trends.columns,
+            title=f"📈 Sector Performance Over {period.upper()}",
+            labels={"value": "Normalized Price", "index": "Date", "variable": "Sector"},
+        )
+        fig.update_layout(legend_title_text="Sectors")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No sector trend data available.")
+
+    st.caption("Source: Yahoo Finance via yfinance")
+
 #--------------------------------------------------------------------End Sector Overview Feature---------------------------------------------
 
 #------------------------------------------------------------------Top 5 Best Best Performing Stock Today------------------
