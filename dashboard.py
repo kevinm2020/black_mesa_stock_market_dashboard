@@ -258,10 +258,7 @@ if mode == "User":
     index=0  # this sets "1m" as the default
     )
 
-
     # === (logic) Collect Performance Data ===
-
-
 
     sector_performance = []
 
@@ -271,6 +268,7 @@ if mode == "User":
             try:
                 stock = yf.Ticker(ticker)
                 data = stock.history(period=period)
+                time.sleep(1)     #proccess data , buffer
                 if not data.empty:
                     open_price = data["Open"].iloc[0]
                     close_price = data["Close"].iloc[-1]
@@ -282,7 +280,6 @@ if mode == "User":
         if changes:
             avg_change = round(sum(changes) / len(changes), 2)
             sector_performance.append({"Sector": sector, "Change": avg_change})
-    
 
 
     # === (u/i) Display Metrics in Columns ===
@@ -309,12 +306,13 @@ if mode == "User":
 
     # === SECTOR MOVERS (TOP 3 WINNERS/LOSERS SECTORS) ===
     
-
+    #try block for protection
     df = pd.DataFrame(sector_performance)
     # Clean column names by stripping whitespace
-    df.columns = df.columns.str.strip()
+    df.columns = pd.Index([col.strip() if isinstance(col, str) else col for col in df.columns])
 
     if 'Change' in df.columns:
+
         try:
             # Sort by % change
             sorted_df = df.sort_values("Change", ascending=False)
@@ -323,6 +321,8 @@ if mode == "User":
             top_gainers = sorted_df.head(3)
             top_losers = sorted_df.tail(3)
 
+
+            
             # Display them side-by-side
             st.subheader("Top Sector Movers")
 
@@ -376,14 +376,24 @@ if mode == "User":
 
             st.write("Source: Yahoo Finance")
             st.write("                                    ")
-            st.write("                                    ")
-        except KeyError as e:
-            print(f"KeyError: {e}. Available columns are: {df.columns.tolist()}")
+
         except Exception as e:
             print(f"An unexpected error occurred during sorting: {e}")
-    else:
-        print(f"'Change' column not found in DataFrame. Available columns: {df.columns.tolist()}")
+            st.error(f"Error processing sector performance: {e}")
+            sorted_df = pd.DataFrame()
+            top_gainers = pd.DataFrame()
+            top_losers = pd.DataFrame()
+        except KeyError as e:
+            print(f"KeyError: {e}. Available columns are: {df.columns.tolist()}")
 
+
+            
+    else:
+        st.warning("'Change' column not found in sector performance data.")
+        sorted_df = pd.DataFrame()
+        top_gainers = pd.DataFrame()
+        top_losers = pd.DataFrame()
+        print(f"Available columns: {df.columns.tolist()}")
     
 #--------------------------------------------------------------------End Sector Overview Feature---------------------------------------------
 
@@ -914,7 +924,7 @@ if 'alert_thread' not in st.session_state:
 #push to github
 #git add .
 #git commit -m "message"
-#git 
+#git push
 
 """
 
