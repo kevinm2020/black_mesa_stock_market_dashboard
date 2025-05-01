@@ -1,0 +1,114 @@
+#--------------------------------------------------------------------Sector Overview Feature---------------------------------------------------------
+
+    #--------------------------------------------------------------------Sector Overview Feature---------------------------------------------------------
+
+   
+    # Utility: robust batch download with retries
+    def robust_download(tickers, period, max_retries=3, backoff=2):
+        for attempt in range(max_retries):
+            try:
+                data = yf.download(
+                    tickers,
+                    period=period,
+                    group_by='ticker',
+                    threads=True,
+                    progress=False,
+                    timeout=10
+                )
+                return data
+            except YFRateLimitError:
+                wait = backoff ** attempt
+                st.warning(f"Rate limit hit, retrying in {wait}s…")
+                time.sleep(wait)
+            except Exception as e:
+                st.error(f"Download error: {e}")
+                break
+        st.error("Failed to download data after multiple attempts.")
+        return pd.DataFrame()
+
+    # === Sector Overview ===
+    @st.cache_data(ttl=600)
+    def get_sector_data(all_tickers, period):
+        return robust_download(all_tickers, period)
+
+    def sector_overview():
+
+        st.title("📊 SECTORS OVERVIEW")
+        st.write("Watch the sectors")
+
+        sector_tickers = {
+            "Technology": ["AAPL", "MSFT", "NVDA"],
+            "Consumer Discretionary": ["TSLA", "AMZN"],
+            "Financials": ["JPM", "BAC"],
+            "Energy": ["XOM", "CVX"],
+            "Healthcare": ["JNJ", "PFE"],
+            "Industrials": ["BA", "CAT"]
+        }
+
+        st.subheader("Sector Performance")
+        period = st.selectbox("Select time range:", ["1d", "5d", "1mo"], index=1)
+        all_tickers = [t for lst in sector_tickers.values() for t in lst]
+
+        with st.spinner("Loading sector data..."):
+            all_data = get_sector_data(all_tickers, period)
+
+        # calculate avg change
+        performance = []
+        for sector, tickers in sector_tickers.items():
+            changes = []
+            for t in tickers:
+                df = all_data.get(t)
+                if df is None or df.empty:
+                    st.warning(f"No data for {t}")
+                    continue
+                o, c = df["Open"].iloc[0], df["Close"].iloc[-1]
+                changes.append((c - o) / o * 100)
+            if changes:
+                performance.append({"Sector": sector, "Change": round(sum(changes)/len(changes),2)})
+
+        cols = st.columns(max(len(performance),1))
+        st.subheader(f"Sector Performance Summary ({period})")
+        for i, row in enumerate(performance):
+            emoji = "📈" if row["Change"]>0 else "📉"
+            val = f"{row['Change']:+.2f}%"
+            cols[i].metric(f"{emoji} {row['Sector']}", val, val)
+
+        dfp = pd.DataFrame(performance)
+        if not dfp.empty and "Change" in dfp.columns:
+            sorted_df = dfp.sort_values("Change", ascending=False)
+            gainers, losers = sorted_df.head(3), sorted_df.tail(3)
+            st.subheader("Top Sector Movers")
+            c1,c2 = st.columns(2)
+            with c1:
+                st.markdown("### 📈 Gainers")
+                for _,r in gainers.iterrows():
+                    st.markdown(f"- **{r.Sector}**: {r.Change:+.2f}%")
+            with c2:
+                st.markdown("### 📉 Losers")
+                for _,r in losers.iterrows():
+                    st.markdown(f"- **{r.Sector}**: {r.Change:+.2f}%")
+        else:
+            st.warning("No sector performance data available.")
+
+        st.subheader("Sector Trend Comparison")
+        trends = pd.DataFrame()
+        for sector, tickers in sector_tickers.items():
+            df_close = pd.DataFrame()
+            for t in tickers:
+                df = all_data.get(t)
+                if df is not None and not df.empty:
+                    df_close[t] = df["Close"]
+            if not df_close.empty:
+                norm = df_close/df_close.iloc[0]*100
+                trends[sector] = norm.mean(axis=1)
+
+        if not trends.empty:
+            fig = px.line(trends, x=trends.index, y=trends.columns,
+                        title=f"Sector Performance Over {period.upper()}",
+                        labels={"value":"Normalized Price","index":"Date"})
+            fig.update_layout(template="plotly_white", legend_title_text="Sector")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No sector trend data available.")
+
+    sector_overview()

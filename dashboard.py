@@ -21,6 +21,9 @@ from ta.momentum import RSIIndicator
 from twilio.rest import Client
 import threading
 import random
+import requests
+
+
 
 
 conn = sqlite3.connect("alerts.db", check_same_thread=False)
@@ -97,9 +100,13 @@ def send_email_notification(to_email, ticker, alert_type, current_value, thresho
 
 #-------------------------------------------Send SMS Function--------------------------------------
 
+#-------------------------------------------Credentials Section--------------------------------
 account_sid = "ACccee4f046cca24527a11e18fbd652507"
 auth_token = "5d18d25f474eb892d414698206767c02"
 twilio_number = "+18887732224"
+FMP_API_KEY = "ZaYQNqtexbx4FAkxSBTvrDegpa25FFv1"
+BASE_URL = "https://financialmodelingprep.com/api/v3"
+#-------------------------------------------End Credentials Section-------------------
 
 def send_sms_notification(to_phone, ticker, alert_type, current_value, threshold):
     print(f"!!!!!!!  SENDING SMS TO {to_phone}")
@@ -135,22 +142,264 @@ st_autorefresh(interval=60000, limit=None, key="datarefresh")
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "Home"
 
-# Page mode toggle
-st.sidebar.title("🔀 Navigation")
-mode = st.sidebar.selectbox("Select Mode:", ["User", "Admin"])
+# Function to change mode
+def set_mode(new_mode):
+    st.session_state.mode = new_mode
+
+with st.sidebar:
+    st.markdown("Directory")
+    if st.button("Home"):
+        set_mode("Home")
+    if st.button("Company Profile"):
+        set_mode("Company Profile")
+    if st.button("Sector Performance"):
+        set_mode("Sector Performance")
+    if st.button("Market Insights"):
+        set_mode("Market Insights - BETA")
+    if st.button("401(k)-optomizer"):
+        set_mode("401k Optomizer - BETA")
+    if st.button("Stock Alerts"):
+        set_mode("Stock Alerts")
+    if st.button("My Portfolio"):
+        set_mode("My Portfolio")
+    if st.button("Admin"):
+        set_mode("Admin")
+
+#---------------------------------Helper Functions---------------------
 
 
-#-----------------------------------------------------------------user mode----------
 
-if mode == "User":
 
-    st.title("Stock Market Dashboard")
-    st.write("by BLACK MESA SOFTWAR3")
-    st.write("Last Fix: May 1 at 01:30PM CT")
+def get_company_profile(ticker):
+    url = f"https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={FMP_API_KEY}"
+    response = requests.get(url)
+    if response.status_code == 200 and response.json():
+        return response.json()[0]
+    return None
+
+def get_historical_data(ticker):
+    url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?timeseries=200&apikey={FMP_API_KEY}"
+    response = requests.get(url)
+    if response.status_code == 200 and response.json():
+        return pd.DataFrame(response.json()["historical"])
+    return pd.DataFrame()
+
+def get_sector_performance():
+    url = f"https://financialmodelingprep.com/api/v3/stock/sectors-performance?apikey={FMP_API_KEY}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        return pd.DataFrame(data["sectorPerformance"])
+    return pd.DataFrame()
+
+def calculate_rsi(data, period=14):
+    delta = data["close"].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+@st.cache_data(ttl=600)
+def get_top_gainers(limit: int = 10) -> pd.DataFrame:
+    """
+    Fetch today's top gainers from Financial Modeling Prep.
+    
+    Parameters:
+      limit: number of tickers to return (default=10)
+    
+    Returns:
+      DataFrame with columns: ['Ticker', 'Price', 'Price Change', 'Percent Change']
+    """
+    url = f"{BASE_URL}/gainers?apikey={FMP_API_KEY}"
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        # Build DataFrame and rename/format columns
+        df = pd.DataFrame(data[:limit])
+        df = df.rename(columns={
+            "ticker": "Ticker",
+            "price": "Price",
+            "changes": "Price Change",
+            "changesPercentage": "Percent Change"
+        })
+        # Convert "(+3.45%)" → 3.45
+        df["Percent Change"] = (
+            df["Percent Change"]
+              .str.strip("()%+")
+              .astype(float)
+        )
+        return df[["Ticker", "Price", "Price Change", "Percent Change"]]
+    except Exception as e:
+        st.error(f"Failed to load top gainers: {e}")
+        return pd.DataFrame()
+
+#---------------------------------End Helper Functions--------------------------------
+
+
+#-------------------------------------------------------------Start---------------------
+# Main router
+mode = st.session_state.mode
+#-----------------------------------------------------------------Home mode----------
+
+if mode == "Home":
+
+    st.title("Welcome to Black Mesa Market Dashboard")
+    
+    
+    st.subheader("Ready to take the next step in Financial Planning: 401(k), Brokerage, Tax Mitigation, Retirment?")
+    st.write("                   ")
+    if st.button("📅 Book a Free Financial Advisor Consultation"):
+        st.markdown("[Click here to schedule a 15-minute call](https://calendly.com/black-mesa-softwar3)", unsafe_allow_html=True)
+
+
+#-----------------------------Credits------------------------------------------------
+
+    st.subheader("Credits")
+    st.write("Devloped by Kevin Martinez - 2025")
+    st.write("Contact Email : black.mesa.softwar3@gmail.com")
+    
+#----------------------------------------end home mode-------------------------------------------
+
+#---------------------------------------Start Admin Mode------------------------------------
+elif mode == "Admin":
+    st.title("🔐 Admin Panel")
+
+    admin_key = st.text_input("Enter Admin Access Key:", type="password")
+    if admin_key == "blackmesa42":
+
+        st.success("Access Granted ✔️")
+
+        cursor.execute("SELECT * FROM alerts")
+        rows = cursor.fetchall()
+
+        columns = ["ID", "Ticker", "Type", "Threshold", "Direction", "Email", "Phone", "Timestamp", "Status"]
+
+        df = pd.DataFrame(rows, columns=columns)
+
+        st.dataframe(df)
+
+        # Download CSV
+        csv_data = df.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 Download Alerts CSV", data=csv_data, file_name="alerts.csv", mime="text/csv")
+#-------------------end Admin mode---------------------------
+
+
+elif mode == "Company Profile":
+    st.subheader("Company Profile")
+    ticker = st.text_input("Enter Ticker Symbol (e.g., AAPL)", value="AAPL")
+    if ticker:
+        profile = get_company_profile(ticker)
+        hist_data = get_historical_data(ticker)
+
+        if profile:
+            hist_data["date"] = pd.to_datetime(hist_data["date"])
+            hist_data.sort_values("date", inplace=True)
+            hist_data.set_index("date", inplace=True)
+
+            # Display basic company info
+            st.subheader(f"{profile['companyName']} ({profile['symbol']})")
+            st.write(f"**Industry:** {profile['industry']}")
+            st.write(f"**Website:** [{profile['website']}]({profile['website']})")
+            st.write(f"**Description:** {profile['description']}")
+            st.write(f"**Price:** ${profile['price']}")
+            st.write(f"**Exchange:** {profile['exchangeShortName']}")
+
+            # Calculate technical indicators
+            hist_data["50_MA"] = hist_data["close"].rolling(window=50).mean()
+            hist_data["200_MA"] = hist_data["close"].rolling(window=200).mean()
+            hist_data["RSI"] = calculate_rsi(hist_data)
+
+            # Key metrics
+            latest = hist_data.iloc[-1]
+            st.markdown("### 📊 Key Indicators")
+            st.metric("Price", f"${latest['close']:.2f}")
+            st.metric("Volume", f"{int(latest['volume']):,}")
+            st.metric("RSI (14)", f"{latest['RSI']:.2f}")
+            st.metric("50-day MA", f"{latest['50_MA']:.2f}")
+            st.metric("200-day MA", f"{latest['200_MA']:.2f}")
+            st.metric("P/E Ratio", profile.get("pe", "N/A"))
+            st.metric("Beta", profile.get("beta", "N/A"))
+
+            st.markdown("### 📈 Price & Moving Averages")
+            st.line_chart(hist_data[["close", "50_MA", "200_MA"]])
+
+            st.markdown("### 📊 Volume Activity")
+            st.bar_chart(hist_data["volume"])
+        else:
+             st.warning("No historical data found.")
+    else:
+        st.error("Ticker not found or invalid.")
+
+    st.subheader("Company Trending News")
+
+    #------------------------------------------------------------------------News Feature Start-----------------------------------
+
+
+    # 🔒 Replace this with your actual Finnhub API key
+    FINNHUB_API_KEY = "cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80"
+
+    # ---------------- News Page ----------------
+    st.title("📰 Stock News")
+
+    # Let user pick a ticker or reuse one they've searched
+    news_ticker = ticker
+
+    if news_ticker:
+        st.write(f"Latest news for **{news_ticker.upper()}**")
+
+        # Construct Finnhub API request
+        url = f"https://finnhub.io/api/v1/company-news?symbol={news_ticker.upper()}&from=2024-01-01&to=2025-12-31&token=cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80"
+
+        
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            news_data = response.json()
+
+            if news_data:
+                st.subheader("🗞️ Top News Headlines")
+
+                # Create 3 horizontal columns
+                col1, col2, col3 = st.columns(3)
+
+                # Loop through first 3 articles and assign to each column
+                for i, article in enumerate(news_data[:3]):
+                    with [col1, col2, col3][i]:
+                        st.markdown(f"**{article['headline']}**")
+                        st.markdown(f"🕒 {datetime.fromtimestamp(article['datetime']).strftime('%Y-%m-%d %H:%M')}")
+                        st.markdown(f"📎 [Read more]({article['url']})")
+            else:
+                st.info("No news articles found.")
+        else:
+            st.error("Failed to fetch news. Please check your API key or ticker.")
+
+
+
+    #------------------------------------------------------------------------End news feature-----------------------------------------
+
+elif mode == "Sector Performance":
+    st.subheader("Sector Performance")
+
+    st.write("Data since last business day close")
+
+    df_sectors = get_sector_performance()
+    if not df_sectors.empty:
+        df_sectors.columns = ["Sector", "Changes"]
+        st.dataframe(df_sectors)
+        st.bar_chart(df_sectors.set_index("Sector"))
+    else:
+        st.warning("Failed to fetch sector data.")
+
+
+    #--------------------------------------------------------------------Economic Indicators Start-------------------------------
+    st.subheader("MacroEconomics")
    
-
-#--------------------------------------------------------------------Economic Indicators Start-------------------------------
     FRED_API_KEY = "4de30e46287d5d259fd7e0901ef91c59"
     fred = Fred(api_key=FRED_API_KEY)
 
@@ -230,292 +479,26 @@ if mode == "User":
         st.line_chart(df_car.set_index("Date")["Car Sales"])
 
 
-#--------------------------------------------------------------------End Economic Indicators End-------------------------------
+    #--------------------------------------------------------------------End Economic Indicators End-------------------------------
 
-#--------------------------------------------------------------------Sector Overview Feature---------------------------------------------------------
+elif mode == "Market Insights - BETA":
+    st.subheader("Analytical and AI powered Market Predictions and Projections")
 
-    #--------------------------------------------------------------------Sector Overview Feature---------------------------------------------------------
+    st.subheader("🏅 Top 10 Gainers Today")
+    with st.spinner("Loading top gainers..."):
+        top_gain = get_top_gainers(limit=10)
 
-   
-    # Utility: robust batch download with retries
-    def robust_download(tickers, period, max_retries=3, backoff=2):
-        for attempt in range(max_retries):
-            try:
-                data = yf.download(
-                    tickers,
-                    period=period,
-                    group_by='ticker',
-                    threads=True,
-                    progress=False,
-                    timeout=10
-                )
-                return data
-            except YFRateLimitError:
-                wait = backoff ** attempt
-                st.warning(f"Rate limit hit, retrying in {wait}s…")
-                time.sleep(wait)
-            except Exception as e:
-                st.error(f"Download error: {e}")
-                break
-        st.error("Failed to download data after multiple attempts.")
-        return pd.DataFrame()
-
-    # === Sector Overview ===
-    @st.cache_data(ttl=600)
-    def get_sector_data(all_tickers, period):
-        return robust_download(all_tickers, period)
-
-    def sector_overview():
-
-        st.title("📊 SECTORS OVERVIEW")
-        st.write("Watch the sectors")
-
-        sector_tickers = {
-            "Technology": ["AAPL", "MSFT", "NVDA"],
-            "Consumer Discretionary": ["TSLA", "AMZN"],
-            "Financials": ["JPM", "BAC"],
-            "Energy": ["XOM", "CVX"],
-            "Healthcare": ["JNJ", "PFE"],
-            "Industrials": ["BA", "CAT"]
-        }
-
-        st.subheader("Sector Performance")
-        period = st.selectbox("Select time range:", ["1d", "5d", "1mo"], index=1)
-        all_tickers = [t for lst in sector_tickers.values() for t in lst]
-
-        with st.spinner("Loading sector data..."):
-            all_data = get_sector_data(all_tickers, period)
-
-        # calculate avg change
-        performance = []
-        for sector, tickers in sector_tickers.items():
-            changes = []
-            for t in tickers:
-                df = all_data.get(t)
-                if df is None or df.empty:
-                    st.warning(f"No data for {t}")
-                    continue
-                o, c = df["Open"].iloc[0], df["Close"].iloc[-1]
-                changes.append((c - o) / o * 100)
-            if changes:
-                performance.append({"Sector": sector, "Change": round(sum(changes)/len(changes),2)})
-
-        cols = st.columns(max(len(performance),1))
-        st.subheader(f"Sector Performance Summary ({period})")
-        for i, row in enumerate(performance):
-            emoji = "📈" if row["Change"]>0 else "📉"
-            val = f"{row['Change']:+.2f}%"
-            cols[i].metric(f"{emoji} {row['Sector']}", val, val)
-
-        dfp = pd.DataFrame(performance)
-        if not dfp.empty and "Change" in dfp.columns:
-            sorted_df = dfp.sort_values("Change", ascending=False)
-            gainers, losers = sorted_df.head(3), sorted_df.tail(3)
-            st.subheader("Top Sector Movers")
-            c1,c2 = st.columns(2)
-            with c1:
-                st.markdown("### 📈 Gainers")
-                for _,r in gainers.iterrows():
-                    st.markdown(f"- **{r.Sector}**: {r.Change:+.2f}%")
-            with c2:
-                st.markdown("### 📉 Losers")
-                for _,r in losers.iterrows():
-                    st.markdown(f"- **{r.Sector}**: {r.Change:+.2f}%")
-        else:
-            st.warning("No sector performance data available.")
-
-        st.subheader("Sector Trend Comparison")
-        trends = pd.DataFrame()
-        for sector, tickers in sector_tickers.items():
-            df_close = pd.DataFrame()
-            for t in tickers:
-                df = all_data.get(t)
-                if df is not None and not df.empty:
-                    df_close[t] = df["Close"]
-            if not df_close.empty:
-                norm = df_close/df_close.iloc[0]*100
-                trends[sector] = norm.mean(axis=1)
-
-        if not trends.empty:
-            fig = px.line(trends, x=trends.index, y=trends.columns,
-                        title=f"Sector Performance Over {period.upper()}",
-                        labels={"value":"Normalized Price","index":"Date"})
-            fig.update_layout(template="plotly_white", legend_title_text="Sector")
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No sector trend data available.")
-
-    sector_overview()
-
-    # === Top 10 Stocks ===
-    @st.cache_data(ttl=600)
-    def get_top10(tickers):
-        data = robust_download(tickers, "1d")
-        result = []
-        for t in tickers:
-            df = data.get(t)
-            if df is None or df.empty:
-                st.warning(f"No data for {t}")
-                continue
-            o,c = df["Open"].iloc[0], df["Close"].iloc[-1]
-            result.append({"Ticker": t, "Change": round((c-o)/o*100,2)})
-        return result
-
-    st.title("🏅 Top 10 Best Performing Stocks Today")
-    st.write("Here are today’s top 10 by percent change:")
-    tickers = ['AAPL','TSLA','AMZN','GOOGL','MSFT','SPY','NFLX','NVDA','META','AMD']
-    with st.spinner("Loading top stocks..."):
-        perf = get_top10(tickers)
-
-    if perf:
-        df10 = pd.DataFrame(sorted(perf, key=lambda x: x["Change"], reverse=True)[:10])
-        fig2 = px.bar(df10, x="Ticker", y="Change",
-                    title="Top 10 Stocks Today",
-                    labels={"Change":"% Change"},
-                    color="Change", color_continuous_scale="Viridis")
-        fig2.update_layout(template="plotly_white")
-        st.plotly_chart(fig2, use_container_width=True)
+    if not top_gain.empty:
+        st.dataframe(top_gain.set_index("Ticker"))       # Table view
+        st.bar_chart(top_gain.set_index("Ticker")["Percent Change"])  # Chart
     else:
-        st.error("No stock performance data available.")
+        st.warning("No gainers data available at the moment.")
 
-    st.caption("Source: Yahoo Finance")
-
-
-    # === Single Ticker Evaluation ===
-    @st.cache_data(ttl=600)
-    def load_ticker(ticker):
-        try:
-            tk = yf.Ticker(ticker)
-            df = tk.history(period="1y")
-            info = tk.info
-            return df, info
-        except:
-            return pd.DataFrame(), {}
-
-    st.title("📈 Single Ticker Evaluation")
-    user = st.text_input("Enter ticker:", "AAPL")
-    user_ticker = user
-    if user:
-        with st.spinner(f"Loading {user} data..."):
-            df_t, info = load_ticker(user)
-
-        if df_t.empty:
-            st.error(f"Could not fetch data for {user}. Please try again later.")
-        else:
-            st.subheader(f"{user} Price & Volume")
-            fig3 = make_subplots(rows=2,cols=1,shared_xaxes=True,
-                                vertical_spacing=0.1,
-                                subplot_titles=("Closing Price","Volume"))
-            fig3.add_trace(go.Scatter(x=df_t.index,y=df_t["Close"],name="Price"),row=1,col=1)
-            fig3.add_trace(go.Bar(x=df_t.index,y=df_t["Volume"],name="Volume"),row=2,col=1)
-            fig3.update_layout(height=700,template="plotly_white")
-            c1,c2 = st.columns([2,1])
-            with c1:
-                st.plotly_chart(fig3,use_container_width=True)
-            with c2:
-                st.subheader("Key Indicators")
-                try:
-                    price = df_t["Close"].iloc[-1]
-                    rsi = RSIIndicator(df_t["Close"]).rsi().iloc[-1]
-                    vol = df_t["Volume"].iloc[-1]
-                    ma50 = df_t["Close"].rolling(50).mean().iloc[-1]
-                    ma200= df_t["Close"].rolling(200).mean().iloc[-1]
-                    pe = info.get("trailingPE","N/A")
-                    beta= info.get("beta","N/A")
-                    st.metric("Price",f"${price:.2f}")
-                    st.metric("RSI",f"{rsi:.2f}")
-                    st.metric("Volume",f"{vol:,}")
-                    st.metric("50-Day MA",f"${ma50:.2f}")
-                    st.metric("200-Day MA",f"${ma200:.2f}")
-                    st.metric("P/E Ratio",pe)
-                    st.metric("Beta",beta)
-                except Exception as e:
-                    st.warning(f"Indicator error: {e}")
-            st.caption("Source: Yahoo Finance via yfinance")
-#---------------------------------------------------Volume Feature end-----------------------------------------
-
-#------------------------------------------------------------------------News Feature Start-----------------------------------
-
-
-    # 🔒 Replace this with your actual Finnhub API key
-    FINNHUB_API_KEY = "cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80"
-
-    # ---------------- News Page ----------------
-    st.title("📰 Stock News")
-
-    # Let user pick a ticker or reuse one they've searched
-    news_ticker = user_ticker
-
-    if news_ticker:
-        st.write(f"Latest news for **{news_ticker.upper()}**")
-
-        # Construct Finnhub API request
-        url = f"https://finnhub.io/api/v1/company-news?symbol={news_ticker.upper()}&from=2024-01-01&to=2025-12-31&token=cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80"
-
-        
-        response = requests.get(url)
-        
-        if response.status_code == 200:
-            news_data = response.json()
-
-            if news_data:
-                st.subheader("🗞️ Top News Headlines")
-
-                # Create 3 horizontal columns
-                col1, col2, col3 = st.columns(3)
-
-                # Loop through first 3 articles and assign to each column
-                for i, article in enumerate(news_data[:3]):
-                    with [col1, col2, col3][i]:
-                        st.markdown(f"**{article['headline']}**")
-                        st.markdown(f"🕒 {datetime.fromtimestamp(article['datetime']).strftime('%Y-%m-%d %H:%M')}")
-                        st.markdown(f"📎 [Read more]({article['url']})")
-            else:
-                st.info("No news articles found.")
-        else:
-            st.error("Failed to fetch news. Please check your API key or ticker.")
-
-
-
-    #------------------------------------------------------------------------End news feature-----------------------------------------
-
-    #-----------------------------------------------------------------Start News Sentiment Feature-----------------------------------------
-
-    #feature needs to be paid for
-
-    #ticker = ticker
-    #url = f"https://finnhub.io/api/v1/news-sentiment?symbol={ticker}&token=cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80"
-    #res = requests.get(url)
-
-    #if res.status_code == 200:
-        #data = res.json()
-        #if "sentiment" in data and "bullishPercent" in data["sentiment"]:
-            #bullish = data['sentiment']['bullishPercent']
-            #bearish = data['sentiment']['bearishPercent']
-            #buzz = data['buzz']['articlesInLastWeek']
-
-            #st.subheader(f"🧠 Sentiment for {ticker.upper()}")
-            #st.write(f"**Bullish Sentiment:** {bullish}%")
-            #st.write(f"**Bearish Sentiment:** {bearish}%")
-            #st.write(f"**Buzz Score:** {buzz} articles this week")
-        #else:
-            #st.warning("⚠️ Sentiment data not available for this ticker.")
-    #else:
-        #st.error(f"Failed to fetch sentiment data. Status code: {res.status_code}")
-
-
-    #-----------------------------------------------------------------End News Sentiment Feature -----------------------------------------
-    
-    
-
+    st.subheader("Market Concensus - Buy? Hold? Sell?")
 
     #-------------------------------------------------Analysts Concensus------------------------------
 
-    st.write("                                    ")
-    st.write("                                    ")
-    st.title("🔎 Analyst Concensus")
-    st.write("Buy? Hold? Sell? - See what the experts are saying")
-    ticker = user_ticker
+    ticker = st.text_input("Enter Ticker Symbol (e.g., AAPL)", value="AAPL")
 
     FINNHUB_API_KEY = "cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80"
 
@@ -595,7 +578,9 @@ if mode == "User":
     
 
     #-------------------------------------------------Analysyt Consensus Feature End------------------------------
-    
+
+elif mode == "Stock Alerts":
+    st.subheader("Get instant SMS/Email Notifications on Stock breakthroughs")
 
     #----------------------------------------------------Price Alert Notification-------------------------------------
     
@@ -759,47 +744,7 @@ if mode == "User":
         conn.close()  
 
 
-#-------------------------------button-------------------------------------------------------------------
 
-    st.subheader("Ready to take the next step in Financial Planning: 401(k), Brokerage, Tax Mitigation, Retirment?")
-    st.write("                   ")
-    if st.button("📅 Book a Free Financial Advisor Consultation"):
-        st.markdown("[Click here to schedule a 15-minute call](https://calendly.com/black-mesa-softwar3)", unsafe_allow_html=True)
-
-
-#-----------------------------Credits------------------------------------------------
-
-    st.write("                                    ")
-    st.write("                                    ")
-    st.subheader("Credits")
-    st.write("Devloped by Kevin Martinez - 2025")
-    st.write("Contact Email : black.mesa.softwar3@gmail.com")
-    st.write("Last Fix: April 30/25 11:09PM CT")
-    
-#----------------------------------------end user mode-------------------------------------------
-
-#---------------------------------------Start Admin Mode------------------------------------
-if mode == "Admin":
-    st.title("🔐 Admin Panel")
-
-    admin_key = st.text_input("Enter Admin Access Key:", type="password")
-    if admin_key == "blackmesa42":
-
-        st.success("Access Granted ✔️")
-
-        cursor.execute("SELECT * FROM alerts")
-        rows = cursor.fetchall()
-
-        columns = ["ID", "Ticker", "Type", "Threshold", "Direction", "Email", "Phone", "Timestamp", "Status"]
-
-        df = pd.DataFrame(rows, columns=columns)
-
-        st.dataframe(df)
-
-        # Download CSV
-        csv_data = df.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Download Alerts CSV", data=csv_data, file_name="alerts.csv", mime="text/csv")
-#-------------------end Admin mode---------------------------
 
 def run_alert_checker():
     while True:
@@ -823,7 +768,7 @@ if 'alert_thread' not in st.session_state:
 
 """
 
-Versiion 1.0 
-Last Update: May 1 - 2025  at 09:57AM CT  
+Version 1.0 
+Last Update: May 1 - 2025  at 04:08PM CT  
 
 """
