@@ -254,7 +254,7 @@ if mode == "User":
 
     period = st.selectbox(
     "Select time range:",
-    ["1mo", "1y", "5y", "10y"],
+    ["1y", "5y", "10y"],
     index=0  # this sets "1m" as the default
     )
 
@@ -264,6 +264,7 @@ if mode == "User":
 
 
     sector_performance = []
+
     for sector, tickers in sector_tickers.items():
         changes = []
         for ticker in tickers:
@@ -307,70 +308,82 @@ if mode == "User":
 
 
     # === SECTOR MOVERS (TOP 3 WINNERS/LOSERS SECTORS) ===
+    
 
     df = pd.DataFrame(sector_performance)
+    # Clean column names by stripping whitespace
+    df.columns = df.columns.str.strip()
 
-    # Sort by % change
-    sorted_df = df.sort_values("Change", ascending=False)
+    if 'Change' in df.columns:
+        try:
+            # Sort by % change
+            sorted_df = df.sort_values("Change", ascending=False)
 
-    # Split into Top 3 Gainers and Top 3 Losers
-    top_gainers = sorted_df.head(3)
-    top_losers = sorted_df.tail(3)
+            # Split into Top 3 Gainers and Top 3 Losers
+            top_gainers = sorted_df.head(3)
+            top_losers = sorted_df.tail(3)
 
-    # Display them side-by-side
-    st.subheader("Top Sector Movers")
+            # Display them side-by-side
+            st.subheader("Top Sector Movers")
 
-    col1, col2 = st.columns(2)
+            col1, col2 = st.columns(2)
 
-    with col1:
-        st.markdown("### 📈 Top 3 Gainers")
-        for _, row in top_gainers.iterrows():
-            st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
+            with col1:
+                st.markdown("### 📈 Top 3 Gainers")
+                for _, row in top_gainers.iterrows():
+                    st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
 
-    with col2:
-        st.markdown("### 📉 Top 3 Losers")
-        for _, row in top_losers.iterrows():
-            st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
+            with col2:
+                st.markdown("### 📉 Top 3 Losers")
+                for _, row in top_losers.iterrows():
+                    st.markdown(f"- **{row['Sector']}**: {row['Change']:+.2f}%")
 
-    # === Sector Trend Comparison Line Chart ==========
+            # === Sector Trend Comparison Line Chart ==========
 
-    st.subheader("Sector Trend Comparison")
+            st.subheader("Sector Trend Comparison")
 
-    # Create a DataFrame to hold sector time series
-    sector_trends = pd.DataFrame()
+            # Create a DataFrame to hold sector time series
+            sector_trends = pd.DataFrame()
 
-    # Loop again to fetch time-series data per sector
-    for sector, tickers in sector_tickers.items():
-        sector_prices = pd.DataFrame()
+            # Loop again to fetch time-series data per sector
+            for sector, tickers in sector_tickers.items():
+                sector_prices = pd.DataFrame()
 
-        for ticker in tickers:
-            try:
-                stock = yf.Ticker(ticker)
-                data = stock.history(period=period)
-                if not data.empty:
-                    sector_prices[ticker] = data["Close"]
-            except:
-                continue
+                for ticker in tickers:
+                    try:
+                        stock = yf.Ticker(ticker)
+                        data = stock.history(period=period)
+                        if not data.empty:
+                            sector_prices[ticker] = data["Close"]
+                    except:
+                        continue
 
-        if not sector_prices.empty:
-            # Normalize to 100 for comparability
-            normalized = sector_prices / sector_prices.iloc[0] * 100
-            sector_trends[sector] = normalized.mean(axis=1)  # average of tickers
+                if not sector_prices.empty:
+                    # Normalize to 100 for comparability
+                    normalized = sector_prices / sector_prices.iloc[0] * 100
+                    sector_trends[sector] = normalized.mean(axis=1)  # average of tickers
 
-    # Plot
-    fig = px.line(
-        sector_trends,
-        x=sector_trends.index,
-        y=sector_trends.columns,
-        title=f"📈 Sector Performance Over {period.upper()}",
-        labels={"value": "Normalized Price", "index": "Date", "variable": "Sector"},
-    )
-    fig.update_layout(legend_title_text='Sectors')
-    st.plotly_chart(fig, use_container_width=True)
+            # Plot
+            fig = px.line(
+                sector_trends,
+                x=sector_trends.index,
+                y=sector_trends.columns,
+                title=f"📈 Sector Performance Over {period.upper()}",
+                labels={"value": "Normalized Price", "index": "Date", "variable": "Sector"},
+            )
+            fig.update_layout(legend_title_text='Sectors')
+            st.plotly_chart(fig, use_container_width=True)
 
-    st.write("Source: Yahoo Finance")
-    st.write("                                    ")
-    st.write("                                    ")
+            st.write("Source: Yahoo Finance")
+            st.write("                                    ")
+            st.write("                                    ")
+        except KeyError as e:
+            print(f"KeyError: {e}. Available columns are: {df.columns.tolist()}")
+        except Exception as e:
+            print(f"An unexpected error occurred during sorting: {e}")
+    else:
+        print(f"'Change' column not found in DataFrame. Available columns: {df.columns.tolist()}")
+
     
 #--------------------------------------------------------------------End Sector Overview Feature---------------------------------------------
 
@@ -897,6 +910,11 @@ if 'alert_thread' not in st.session_state:
 #activate virtual enviroment: source venv/bin/activate
 #run the program: streamlit run dashboard.py
 #testing logic python dashboard.py
+
+#push to github
+#git add .
+#git commit -m "message"
+#git 
 
 """
 
