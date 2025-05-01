@@ -254,8 +254,8 @@ if mode == "User":
 
     period = st.selectbox(
     "Select time range:",
-    ["1y", "5y", "10y"],
-    index=0  # this sets "1m" as the default
+    ["1d", "5d", "1mo", "3mo", "6mo", "1y", "5y", "10y"],
+    index=1  # this sets "1d" as the default
     )
 
     # === (logic) Collect Performance Data ===
@@ -309,10 +309,13 @@ if mode == "User":
     #try block for protection
     df = pd.DataFrame(sector_performance)
     # Clean column names by stripping whitespace
-    df.columns = pd.Index([col.strip() if isinstance(col, str) else col for col in df.columns])
+  
 
     if 'Change' in df.columns:
 
+        st.write("Change Column Activated")
+        print("Change Column Activated")
+        
         try:
             # Sort by % change
             sorted_df = df.sort_values("Change", ascending=False)
@@ -386,8 +389,6 @@ if mode == "User":
         except KeyError as e:
             print(f"KeyError: {e}. Available columns are: {df.columns.tolist()}")
 
-
-            
     else:
         st.warning("'Change' column not found in sector performance data.")
         sorted_df = pd.DataFrame()
@@ -929,6 +930,6 @@ if 'alert_thread' not in st.session_state:
 """
 
 Versiion 1.0 
-Last Update: April 30 - 2025  at 10:57pm CT  
+Last Update: May 1 - 2025  at 09:57AM CT  
 
 """
