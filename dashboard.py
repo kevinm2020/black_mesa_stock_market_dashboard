@@ -20,9 +20,10 @@ from fredapi import Fred    #for economic and social indicators
 from ta.momentum import RSIIndicator
 from twilio.rest import Client
 import threading
+import random
 
 
-conn = sqlite3.connect("alerts.db")
+conn = sqlite3.connect("alerts.db", check_same_thread=False)
 cursor = conn.cursor()
 
 #cursor.execute("DROP TABLE IF EXISTS alerts")
@@ -146,7 +147,7 @@ if mode == "User":
 
     st.title("Stock Market Dashboard")
     st.write("by BLACK MESA SOFTWAR3")
-    st.write("Last Fix: May 1 at 11:41AM CT")
+    st.write("Last Fix: May 1 at 12:47PM CT")
    
 
 #--------------------------------------------------------------------Economic Indicators Start-------------------------------
@@ -256,6 +257,8 @@ if mode == "User":
     all_tickers = [ticker for tickers in sector_tickers.values() for ticker in tickers]
     try:
         all_data = yf.download(all_tickers, period=period, group_by='ticker', progress=False)
+        # Add random delay between requests
+        time.sleep(random.uniform(1.5, 3.0))  # wait 1.5 to 3 sec
     except Exception as e:
         st.error(f"Failed to download data: {e}")
         st.stop()
@@ -362,6 +365,8 @@ if mode == "User":
     def get_stock_performance(tickers):
         try:
             data = yf.download(tickers, period="1d", group_by='ticker', auto_adjust=False, threads=True)
+            # Add random delay between requests
+            time.sleep(random.uniform(1.5, 3.0))  # wait 1.5 to 3 sec
             stock_performance = []
 
             for ticker in tickers:
@@ -713,103 +718,102 @@ if mode == "User":
 
         print(">>> check_alerts() is executing")
 
-        cursor.execute("SELECT * FROM alerts WHERE status='pending'")
-        alerts = cursor.fetchall()
-        print(f"📋 {len(alerts)} pending alerts found.")
+        # Open a NEW connection for this thread
+        conn = sqlite3.connect("alerts.db")
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT * FROM alerts WHERE status='pending'")
+            alerts = cursor.fetchall()
+            print(f"📋 {len(alerts)} pending alerts found.")
+        except Exception as e:
+            print(f"⚠️ DB query error: {e}")
+            conn.close()
+            return
 
         for alert in alerts:
             id, ticker, alert_type, threshold, direction, email, phone, status, timestamp = alert
-            stock = yf.Ticker(ticker)
-            data = stock.history(period="1d", interval="1m")
-
-            if data.empty:
-                print("No data found for {ticker}")
-                continue
-
             triggered = False
             current_value = None
             message = ""
-        try:
-            if alert_type == "Price Threshold":
-                current_price = data["Close"].iloc[-1]
-                current_value = current_price
-                if (direction == "Above" and current_value >= threshold) or \
-                (direction == "Below" and current_value <= threshold):
-                    triggered = True
-                    message = f"{ticker} hit ${current_value:.2f} ({direction} {threshold})"
 
-            elif alert_type == "RSI":
-                rsi = RSIIndicator(data["Close"]).rsi().iloc[-1]
-                current_value = rsi
-                if (direction == "Above" and rsi >= threshold) or \
-                (direction == "Below" and rsi <= threshold):
-                    triggered = True
-                    message = f"{ticker} RSI is {rsi:.2f} ({direction} {threshold})"
+            try:
+                stock = yf.Ticker(ticker)
+                data = stock.history(period="1d", interval="1m")
 
-            elif alert_type == "Volume Spike":
-                curr_vol = data["Volume"].iloc[-1]
-                current_value = curr_vol
-                avg_vol = data["Volume"].rolling(window=30).mean().iloc[-2]
-                if curr_vol > 2 * avg_vol:
-                    triggered = True
-                    message = f"{ticker} volume spike: {curr_vol:.0f} vs avg {avg_vol:.0f}"
-            
-            elif alert_type == "Moving Average Crossover":
-                ma50 = data["Close"].rolling(window=50).mean().iloc[-1]
-                ma200 = data["Close"].rolling(window=200).mean().iloc[-1]
-                current_value = ma50
-                if ma50 > ma200:
-                    triggered = True
-                    message = f"{ticker}: 50-day MA ({ma50:.2f}) crossed above 200-day MA ({ma200:.2f})"
-            
-            elif alert_type == "P/E Ratio":
-                pe = stock.info.get("trailingPE")
-                current_value = pe
-                if pe and ((direction == "Above" and pe > threshold) or \
-                       (direction == "Below" and pe < threshold)):
-                            triggered = True
-                            message = f"{ticker} P/E is {pe:.2f} ({direction} {threshold})"
+                if data.empty:
+                    print(f"⚠️ No data found for {ticker}")
+                    continue
 
+                if alert_type == "Price Threshold":
+                    current_price = data["Close"].iloc[-1]
+                    current_value = current_price
+                    if (direction == "Above" and current_value >= threshold) or \
+                    (direction == "Below" and current_value <= threshold):
+                        triggered = True
+                        message = f"{ticker} hit ${current_value:.2f} ({direction} {threshold})"
 
+                elif alert_type == "RSI":
+                    rsi = RSIIndicator(data["Close"]).rsi().iloc[-1]
+                    current_value = rsi
+                    if (direction == "Above" and rsi >= threshold) or \
+                    (direction == "Below" and rsi <= threshold):
+                        triggered = True
+                        message = f"{ticker} RSI is {rsi:.2f} ({direction} {threshold})"
 
+                elif alert_type == "Volume Spike":
+                    curr_vol = data["Volume"].iloc[-1]
+                    avg_vol = data["Volume"].rolling(window=30).mean().iloc[-2]
+                    current_value = curr_vol
+                    if curr_vol > 2 * avg_vol:
+                        triggered = True
+                        message = f"{ticker} volume spike: {curr_vol:.0f} vs avg {avg_vol:.0f}"
 
-            #if any alerts are triggered
-            if triggered:
-                
-                print(f"✅ Alert triggered for {ticker}: {alert_type} - Current Value: {current_value}")
+                elif alert_type == "Moving Average Crossover":
+                    ma50 = data["Close"].rolling(window=50).mean().iloc[-1]
+                    ma200 = data["Close"].rolling(window=200).mean().iloc[-1]
+                    current_value = ma50
+                    if ma50 > ma200:
+                        triggered = True
+                        message = f"{ticker}: 50-day MA ({ma50:.2f}) crossed above 200-day MA ({ma200:.2f})"
 
-                #send email
-                if email:
-                    print(f"Sending email to: {email}")
-                    send_email_notification(
-                        to_email=email,
-                        ticker=ticker,
-                        alert_type=alert_type,
-                        current_value=current_value,
-                        threshold=f"{direction} {threshold}"
-                    )
-                    print(f"email sent to: {email}")
-                
-                if phone:
-                    print(f"Sending SMS to: {phone}")
-                    send_sms_notification(
-                    to_phone=phone,
-                    ticker=ticker,
-                    alert_type=alert_type,
-                    current_value=current_value,
-                    threshold=f"{direction} {threshold}"
-                )
-                print(f"text sent to: {phone}")
+                elif alert_type == "P/E Ratio":
+                    pe = stock.info.get("trailingPE")
+                    current_value = pe
+                    if pe and ((direction == "Above" and pe > threshold) or \
+                            (direction == "Below" and pe < threshold)):
+                        triggered = True
+                        message = f"{ticker} P/E is {pe:.2f} ({direction} {threshold})"
 
-                #update DB status to "triggered"
-                cursor.execute("UPDATE alerts SET status='triggered' WHERE id=?", (id,))
-                conn.commit()
-                st.toast(f"Alert send for {ticker} ({alert_type})")
-        except Exception as e:
-            print("Error")
-        #run check every app refresh        
+                # 🔔 If alert triggered
+                if triggered:
+                    print(f"✅ Alert triggered for {ticker}: {alert_type} - {message}")
 
-    check_alerts()  
+                    if email:
+                        print(f"📧 Sending email to: {email}")
+                        send_email_notification(email, ticker, alert_type, current_value, f"{direction} {threshold}")
+
+                    if phone:
+                        print(f"📱 Sending SMS to: {phone}")
+                        send_sms_notification(phone, ticker, alert_type, current_value, f"{direction} {threshold}")
+
+                    cursor.execute("UPDATE alerts SET status='triggered' WHERE id=?", (id,))
+                    conn.commit()
+
+                    # Optional UI notification (Streamlit toast if in Streamlit)
+                    try:
+                        import streamlit as st
+                        st.toast(f"Alert sent for {ticker} ({alert_type})")
+                    except:
+                        pass
+
+            except Exception as e:
+                print(f"⚠️ Error processing {ticker}: {e}")
+
+            # 🕒 Rate limit delay
+            time.sleep(random.uniform(1.5, 3.0))
+
+        conn.close()  
 
 
 #-------------------------------button-------------------------------------------------------------------
