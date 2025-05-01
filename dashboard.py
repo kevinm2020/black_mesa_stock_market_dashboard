@@ -147,7 +147,7 @@ if mode == "User":
 
     st.title("Stock Market Dashboard")
     st.write("by BLACK MESA SOFTWAR3")
-    st.write("Last Fix: May 1 at 01:08PM CT")
+    st.write("Last Fix: May 1 at 01:30PM CT")
    
 
 #--------------------------------------------------------------------Economic Indicators Start-------------------------------
