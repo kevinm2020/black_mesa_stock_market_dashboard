@@ -353,57 +353,57 @@ if mode == "User":
 #------------------------------------------------------------------Top 5 Best Best Performing Stock Today------------------
 
     st.title("🏅 Top 10 Best Performing Stocks Today")
-    st.write("Here are the top 5 best-performing stocks of today based on percentage change:")
-
-    #S&P 500 tickers
+    st.write("Here are the top 10 best-performing stocks of today based on percentage change:")
     tickers = ['AAPL', 'TSLA', 'AMZN', 'GOOGL', 'MSFT', 'SPY', 'NFLX', 'NVDA', 'META', 'AMD']
 
+    # Cache the stock performance function to reduce API calls
+    @st.cache_data(ttl=600)  # Cache results for 10 minutes
+
     def get_stock_performance(tickers):
+        try:
+            data = yf.download(tickers, period="1d", group_by='ticker', auto_adjust=False, threads=True)
+            stock_performance = []
 
-        #empty list to hold performance data
-        stock_performance = []
+            for ticker in tickers:
+                try:
+                    df = data[ticker]
+                    open_price = df['Open'].iloc[0]
+                    close_price = df['Close'].iloc[-1]
+                    percent_change = ((close_price - open_price) / open_price) * 100
 
-        for ticker in tickers:          #iterate trough tickers in tickers
-            stock = yf.Ticker(ticker)       #get stock data through yfinance
-            data = stock.history(period="1d")   #get 1 day data
+                    stock_performance.append({
+                        'Ticker': ticker,
+                        'Open': open_price,
+                        'Close': close_price,
+                        'Percent Change': percent_change
+                    })
+                except Exception as e:
+                    st.warning(f"⚠️ Could not process {ticker}: {e}")
 
-            #today's open and close prices
-            open_price = data['Open'][0]
-            close_price = data['Close'][0]
+            return stock_performance
 
-            #calculate percent change (from open to close)
-            percent_change = ((close_price - open_price)/open_price) * 100
+        except Exception as e:
+            st.error(f"🚫 Failed to fetch stock data: {e}")
+            return []
 
-            #append stock performance details to the list
-            stock_performance.append({
-                'Ticker': ticker,
-                'Open': open_price,
-                'Close': close_price,
-                'Percent Change': percent_change
-            })
+    # Fetch and sort data
+    top_performance = get_stock_performance(tickers)
 
-            #sort stocks by pecentage change
-            sorted_performance = sorted(stock_performance, key=lambda x: x['Percent Change'], reverse=True)
+    if not top_performance:
+        st.error("No stock data could be retrieved at this time. Please try again later.")
+    else:
+        sorted_performance = sorted(top_performance, key=lambda x: x['Percent Change'], reverse=True)
+        df_top = pd.DataFrame(sorted_performance[:10])
 
-        return sorted_performance[:10]       #had to put it out the the loop, not return within the loop
+        fig = px.bar(df_top, x='Ticker', y='Percent Change',
+                    title="Top 10 Best Performing Stocks Today",
+                    labels={'Percent Change': 'Percentage Change (%)', 'Ticker': 'Stock Ticker'},
+                    color='Percent Change',
+                    color_continuous_scale='Viridis')
 
-
-    top_stocks = get_stock_performance(tickers)     #run get_stock_perfr
-
-    df = pd.DataFrame(top_stocks)
-
-    fig = px.bar(df, x='Ticker', y='Percent Change', 
-                title="Top 5 Best Performing Stocks Today", 
-                labels={'Percent Change': 'Percentage Change (%)', 'Ticker': 'Stock Ticker'},
-                color='Percent Change', 
-                color_continuous_scale='Viridis')
-
-    # Display the chart
-    st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
     st.write("Source: Yahoo Finance")
-    st.write("                                    ")
-    st.write("                                    ")
 
 #-----------------------------------------------------------------------end get stock perfromance(tickers)----------------------
 
