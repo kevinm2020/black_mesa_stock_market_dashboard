@@ -341,7 +341,7 @@ mode = st.session_state.mode
 
 if mode == "Home":
 
-    st.image("/Users/edwinmartinez/Desktop/black_mesa/images/austin_syline.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.image("images/austin_syline.jpg", use_container_width=True)  # This stretches the image to the container width
     st.title("Welcome to The Black Mesa Market Dashboard")
     
     
@@ -843,7 +843,7 @@ elif mode == "Culture and Capital":
     st.write("  Black Mesa articles updated Weekly")
 
     st.subheader("Music")
-    st.image("/Users/edwinmartinez/Desktop/black_mesa/images/music.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.image("images/music.jpg", use_container_width=True)  # This stretches the image to the container width
     
 
     st.divider()
@@ -878,7 +878,7 @@ elif mode == "Culture and Capital":
 
 
     st.subheader("Film/Television")
-    st.image("/Users/edwinmartinez/Desktop/black_mesa/images/film.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.image("images/film.jpg", use_container_width=True)  # This stretches the image to the container width
     st.divider()
 
     st.subheader("🎥 Top 5 Trending Movie/TV Articles")
@@ -920,7 +920,7 @@ elif mode == "Culture and Capital":
 
 
     st.subheader("Sports")
-    st.image("/Users/edwinmartinez/Desktop/black_mesa/images/sports.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.image("images/sports.jpg", use_container_width=True)  # This stretches the image to the container width
     st.divider()
     
 
