@@ -24,8 +24,6 @@ import random
 import requests
 
 
-
-
 conn = sqlite3.connect("alerts.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -106,6 +104,21 @@ auth_token = "5d18d25f474eb892d414698206767c02"
 twilio_number = "+18887732224"
 FMP_API_KEY = "ZaYQNqtexbx4FAkxSBTvrDegpa25FFv1"
 BASE_URL = "https://financialmodelingprep.com/api/v3"
+NEWS_API =  "79153b02c1e94dc0ad074dae21eb9aa2"
+SPORTS_URL = f"https://newsapi.org/v2/top-headlines?category=sports&pageSize=5&language=en&apiKey={NEWS_API}"
+MOVIE_NEWS_URL = (
+    "https://newsapi.org/v2/everything?"
+    "q=movie OR film OR box office OR streaming OR Netflix OR HBO OR Hulu OR Prime Video&"
+    "language=en&"
+    "pageSize=15&"
+    "sortBy=publishedAt&"
+    f"apiKey={NEWS_API}"
+)
+
+ENTERTAINMENT_KEYWORDS = [
+    "movie", "film", "box office", "streaming", "netflix", "hulu", "hbo", "prime video", "cinema", "tv series", "trailer"
+]
+
 #-------------------------------------------End Credentials Section-------------------
 
 def send_sms_notification(to_phone, ticker, alert_type, current_value, threshold):
@@ -153,7 +166,9 @@ with st.sidebar:
     st.markdown("Directory")
     if st.button("Home"):
         set_mode("Home")
-    if st.button("Company Profile"):
+    if st.button("Culture and Capital"):
+        set_mode("Culture and Capital")
+    if st.button("Stock Database"):
         set_mode("Company Profile")
     if st.button("Sector Performance"):
         set_mode("Sector Performance")
@@ -169,7 +184,6 @@ with st.sidebar:
         set_mode("Admin")
 
 #---------------------------------Helper Functions---------------------
-
 
 
 
@@ -239,6 +253,84 @@ def get_top_gainers(limit: int = 10) -> pd.DataFrame:
         st.error(f"Failed to load top gainers: {e}")
         return pd.DataFrame()
 
+
+def fetch_sports_articles():
+    response = requests.get(SPORTS_URL)
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("articles", [])
+    else:
+        return []
+
+
+def getStockPrice(*tickers):
+    FMP_API_KEY = "ZaYQNqtexbx4FAkxSBTvrDegpa25FFv1"
+    tickers_str = ",".join(tickers)
+    url = f"https://financialmodelingprep.com/api/v3/quote/{tickers_str}?apikey={FMP_API_KEY}"
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        stock_data = []
+        for stock in data:
+            stock_data.append({
+                "Name": stock.get("name", "N/A"),
+                "Ticker": stock.get("symbol", "N/A"),
+                "Price": f"${stock.get('price', 'N/A'):.2f}" if stock.get("price") else "N/A"
+            })
+        return stock_data
+
+    except requests.exceptions.RequestException as e:
+        print("Error fetching stock data:", e)
+        return []
+
+
+def display_billboard_chart(data):
+    """
+    Displays a Plotly bar chart comparing current vs last week's Billboard ranks.
+    
+    Parameters:
+    - data (list of dict): List of song dictionaries with 'Rank', 'Title', 'Artist',
+      'Last Week', and optionally 'Peak Position'.
+    """
+
+
+    df = pd.DataFrame(music_data)
+
+    # Create a bar chart
+    fig = px.bar(df, x="Title", y="Rank", color="Rank", 
+                title="Billboard Top 5 Music Hits", 
+                labels={"Title": "Song Title", "Rank": "Chart Rank"},
+                color_continuous_scale="Viridis")
+
+    fig.update_layout(
+        plot_bgcolor='rgba(0, 0, 0, 0)',  # Transparent background
+        xaxis_title='Song Title',
+        yaxis_title='Rank',
+        xaxis_tickangle=-45,
+        font=dict(family='Arial', size=14, color='white')
+    )
+
+    # Show the chart
+    st.plotly_chart(fig)
+
+
+def is_entertainment_article(article):
+    text = f"{article.get('title', '')} {article.get('description', '')}".lower()
+    return any(keyword in text for keyword in ENTERTAINMENT_KEYWORDS)
+
+def fetch_entertainment_articles():
+    response = requests.get(MOVIE_NEWS_URL)
+    if response.status_code == 200:
+        articles = response.json().get("articles", [])
+        curated = [a for a in articles if is_entertainment_article(a)]
+        return curated[:5] if len(curated) >= 3 else curated + articles[:5 - len(curated)]
+    return []
+
+
+
 #---------------------------------End Helper Functions--------------------------------
 
 
@@ -249,10 +341,11 @@ mode = st.session_state.mode
 
 if mode == "Home":
 
-    st.title("Welcome to Black Mesa Market Dashboard")
+    st.image("/Users/edwinmartinez/Desktop/black_mesa/images/austin_syline.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.title("Welcome to The Black Mesa Market Dashboard")
     
     
-    st.subheader("Ready to take the next step in Financial Planning: 401(k), Brokerage, Tax Mitigation, Retirment?")
+    st.subheader("Read our Financial Insights. Once you are ready to take the next step, contact a Fidicuary Financial Advisor today for a complementary consulation.")
     st.write("                   ")
     if st.button("📅 Book a Free Financial Advisor Consultation"):
         st.markdown("[Click here to schedule a 15-minute call](https://calendly.com/black-mesa-softwar3)", unsafe_allow_html=True)
@@ -580,6 +673,7 @@ elif mode == "Market Insights - BETA":
     #-------------------------------------------------Analysyt Consensus Feature End------------------------------
 
 elif mode == "Stock Alerts":
+
     st.subheader("Get instant SMS/Email Notifications on Stock breakthroughs")
 
     #----------------------------------------------------Price Alert Notification-------------------------------------
@@ -743,6 +837,126 @@ elif mode == "Stock Alerts":
 
         conn.close()  
 
+elif mode == "Culture and Capital":
+    st.subheader("Culture and Capital")
+    st.write("  To be an Austinite is to be inherently cool and in the know — here’s what the cool crowd is tracking in Music, Film, Fashion and Sports")
+    st.write("  Black Mesa articles updated Weekly")
+
+    st.subheader("Music")
+    st.image("/Users/edwinmartinez/Desktop/black_mesa/images/music.jpg", use_container_width=True)  # This stretches the image to the container width
+    
+
+    st.divider()
+
+
+    col1, col2 = st.columns([2.3,1.7])
+
+    with col1:
+        music_data = [
+            {'Rank': 1, 'Title': 'Luther', 'Artist': 'Kendrick Lamar & SZA', 'Last Week': 1, 'Peak Position': 1},
+            {'Rank': 2, 'Title': 'Die With A Smile', 'Artist': 'Lady Gaga & Bruno Mars', 'Last Week': 2, 'Peak Position': 1},
+            {'Rank': 3, 'Title': 'Ordinary', 'Artist': 'Alex Warren', 'Last Week': 5, 'Peak Position': 3},
+            {'Rank': 4, 'Title': 'Nokia', 'Artist': 'Drake', 'Last Week': 3, 'Peak Position': 2},
+            {'Rank': 5, 'Title': 'A Bar Song (Tipsy)', 'Artist': 'Shaboozey', 'Last Week': 6, 'Peak Position': 1},
+        ]
+        display_billboard_chart(music_data)
+
+    with col2:
+        st.subheader("Music Finance")
+        st.divider()
+        music_stock = ["SPOT", "LYV", "SONY"]
+        music_stock_market_data = getStockPrice(*music_stock)
+
+        if music_stock_market_data:
+            st.table(music_stock_market_data)
+        else:
+            st.error("Failed to load music stock prices.")
+
+    st.subheader("On Music by BLACK MESA MUSIC Coverage")
+    st.write("Article Here")
+    st.divider()    
+
+
+    st.subheader("Film/Television")
+    st.image("/Users/edwinmartinez/Desktop/black_mesa/images/film.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.divider()
+
+    st.subheader("🎥 Top 5 Trending Movie/TV Articles")
+
+    col1, col2 = st.columns([2,2])
+
+    with col1:
+
+        articles = fetch_entertainment_articles()
+
+        if articles:
+            for article in articles:
+                st.markdown(f"### [{article['title']}]({article['url']})")
+                st.markdown(f"*{article['source']['name']}* — {article['publishedAt'][:10]}")
+                if article.get('urlToImage'):
+                    st.image(article['urlToImage'], use_container_width=True)
+                st.markdown(f"{article['description']}")
+                st.markdown("---")
+        else:
+            st.error("Couldn't load trending entertainment articles.")
+
+    
+    with col2:
+        st.subheader("Entertainment Finance")
+        
+        sport_stock = ["NFLX", "DIS", "WBD", "PARA", "CMCSA", "AMCX", "IMAX"]
+        sport_stock_market_data = getStockPrice(*sport_stock)
+
+        if sport_stock_market_data:
+            st.table(sport_stock_market_data)
+        else:
+            st.error("Failed to load sport stock prices.")
+
+    
+    st.subheader("On FILM by BLACK MESA ENTERTAINMENT Coverage")
+    st.write("Article Here")
+    st.divider()  
+
+
+
+    st.subheader("Sports")
+    st.image("/Users/edwinmartinez/Desktop/black_mesa/images/sports.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.divider()
+    
+
+    col1, col2 = st.columns([2,2])
+
+    with col1:
+        st.subheader("Top 5 Trending Sports Articles")
+        articles = fetch_sports_articles()
+
+        if articles:
+            for article in articles:
+                st.markdown(f"### [{article['title']}]({article['url']})")
+                st.markdown(f"*{article['source']['name']}* — {article['publishedAt'][:10]}")
+                st.markdown(f"{article['description']}")
+                st.markdown("---")
+        else:
+            st.error("Unable to fetch sports articles at this time.")
+
+    
+    with col2:
+        st.subheader("Sport Finance")
+        st.divider()
+        sport_stock = ["DIS", "CMCSA", "FOXA", "PARA", "DKNG", "NKE", "ADDYY"]
+        sport_stock_market_data = getStockPrice(*sport_stock)
+
+        if sport_stock_market_data:
+            st.table(sport_stock_market_data)
+        else:
+            st.error("Failed to load sport stock prices.")
+
+
+    st.divider()
+
+    st.subheader("On SPORTS by BLACK MESA SPORTS Coverage")
+    st.write("Article Here")
+    st.divider()
 
 
 
@@ -760,6 +974,8 @@ if 'alert_thread' not in st.session_state:
 #activate virtual enviroment: source venv/bin/activate
 #run the program: streamlit run dashboard.py
 #testing logic python dashboard.py
+#install dependencies: pip install -r requirements.txt
+
 
 #push to github
 #git add .
@@ -768,7 +984,7 @@ if 'alert_thread' not in st.session_state:
 
 """
 
-Version 1.0 
-Last Update: May 1 - 2025  at 04:08PM CT  
+Version 1.5 
+Last Update: May 5 - 2025  at 02:51PM CT  
 
 """

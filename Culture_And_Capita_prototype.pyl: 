@@ -1,0 +1,61 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+class SocialIndicatorTab:
+
+    def graph_top_5_trending_songs(self):
+
+        # Placeholder data - replace with API calls to Spotify, Apple Music, Billboard
+
+        data = {
+            'Song': ['Song A', 'Song B', 'Song C', 'Song D', 'Song E'],
+            'Streams': [1200000, 1100000, 1050000, 950000, 900000],
+        }
+        df = pd.DataFrame(data)
+        sns.barplot(x='Streams', y='Song', data=df, palette='mako')
+        plt.title("Top 5 Trending Songs (Weekly)")
+        plt.xlabel("Streams")
+        plt.ylabel("Song")
+        plt.tight_layout()
+        plt.show()
+
+    def graph_music_entertainment_sector(self):
+        # Placeholder data - replace with financial API data (e.g., Yahoo Finance)
+        data = {
+            'Company': ['WMG', 'VIV', 'SONY'],
+            'Weekly Change (%)': [2.5, -1.2, 0.8]
+        }
+        df = pd.DataFrame(data)
+        sns.barplot(x='Company', y='Weekly Change (%)', data=df, palette='Set2')
+        plt.title("Music Entertainment Sector Weekly Performance")
+        plt.ylabel("Weekly Change (%)")
+        plt.tight_layout()
+        plt.show()
+
+    def graph_streaming_media_tickers(self):
+        # Placeholder data - replace with financial API data
+        data = {
+            'Company': ['NFLX', 'DISNEY', 'DIS', 'AMZN'],
+            'Weekly Change (%)': [1.5, -0.8, 2.1, -1.5]
+        }
+        df = pd.DataFrame(data)
+        sns.barplot(x='Company', y='Weekly Change (%)', data=df, palette='coolwarm')
+        plt.title("Streaming & Media Companies Weekly Performance")
+        plt.ylabel("Weekly Change (%)")
+        plt.tight_layout()
+        plt.show()
+
+    def graph_top_5_trending_shows_movies(self):
+        # Placeholder data - replace with API calls to IMDB, Netflix Top 10, JustWatch
+        data = {
+            'Title': ['Show A', 'Movie B', 'Show C', 'Movie D', 'Show E'],
+            'Popularity Score': [98, 95, 92, 90, 88]
+        }
+        df = pd.DataFrame(data)
+        sns.barplot(x='Popularity Score', y='Title', data=df, palette='viridis')
+        plt.title("Top 5 Trending Shows/Movies This Week")
+        plt.xlabel("Popularity Score")
+        plt.ylabel("Title")
+        plt.tight_layout()
+        plt.show()

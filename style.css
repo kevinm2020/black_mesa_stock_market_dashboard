@@ -1,82 +1,123 @@
+/*
+
+Black Mesa Stock Market Dashboard - CSS Style 
+
+*/
+
+
+
 /* === GLOBAL STYLING: Applies to the whole app === */
 body {
     background-color: #0d0d0d; /* Deep black background for terminal vibe */
-    color: #ff0000; /* Bright red text for retro theme */
-    font-family: 'IBM Plex Mono', monospace; /* Terminal-style monospace font */
+    color: #0d0d0d; /* Grey text */
+    accent-color: #ff007a;
+    font-family: 'Inter', 'Segoe UI', sans-serif; /* Clean modern sans-serif for readability */
+    line-height: 1.6; /* Slight line spacing improves reading experience */
 }
 
 /* === HEADINGS: h1 to h5 titles === */
 h1, h2, h3, h4, h5 {
-    color: #00bfff; /* Electric blue headers */
-    border-left: 4px solid #ff0000; /* Red vertical bar next to headings */
-    padding-left: 12px; /* Space between bar and heading text */
-    font-weight: bold; /* Bold font for strong section titles */
-    text-transform: uppercase; /* All caps for that retro energy */
-    letter-spacing: 1px; /* Spaced out text for a digital look */
+    color: #00ffe1; /* Cool cyan for accenting headers */
+    border-left: 4px solid #ff7b00; /* Neon pink bar adds contrast and structure */
+    padding-left: 12px; /* Space between border and text */
+    font-weight: 600; /* Medium-bold weight for clarity without heaviness */
+    /* text-transform: uppercase; /* Keeps the retro command-line vibe */
+    letter-spacing: 0.5px; /* Slight spacing for digital feel */
+    margin-bottom: 12px;
 }
 
 /* === PARAGRAPH TEXT & MARKDOWN === */
 p, .stMarkdown {
-    color: #ff4d4d; /* Softer red for regular paragraph/body text */
-    font-size: 16px; /* Default readable size */
+    color: #cccccc; /* Softer gray to distinguish from headers */
+    font-size: 16px;
+    margin-bottom: 10px;
 }
 
 /* === BUTTONS === */
 button {
-    background-color: #111 !important; /* Very dark button background */
-    color: #ffcc00 !important; /* Gold/yellow button text */
-    border: 1px solid #ffcc00 !important; /* Gold border */
-    font-weight: bold; /* Bold text inside buttons */
+    background-color: #1a1a1a !important; /* Dark button background */
+    color: #00ffe1 !important; /* Cyan button text for thematic consistency */
+    border: 1px solid #00ffe1 !important; /* Cyan border */
+    border-radius: 6px; /* Slight rounding for a more modern look */
+    padding: 6px 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease; /* Smooth hover effect */
 }
 
 button:hover {
-    background-color: #ffcc00 !important; /* Bright gold on hover */
-    color: #0d0d0d !important; /* Black text when hovered */
-    font-weight: bold;
+    background-color: #00ffe1 !important; /* Cyan background on hover */
+    color: #0d0d0d !important; /* Invert text color on hover */
 }
 
 /* === TEXT INPUTS (text fields, email, phone, etc.) === */
 input, textarea {
-    background-color: #1a1a1a !important; /* Darker input background */
-    color: #00bfff !important; /* Blue text input value */
-    border: 1px solid #00bfff !important; /* Blue border outline */
-    font-weight: bold;
+    background-color: #e0e0e0 !important; /* Very dark background */
+    color: #00ffe1 !important; /* Cyan text input */
+    border: 1px solid #00ffe1 !important; /* Cyan border */
+    border-radius: 4px;
+    padding: 6px;
+    font-weight: 500;
 }
 
 /* === METRICS WIDGETS (like key stats) === */
 .stMetric {
-    background-color: #111; /* Slightly lighter black background */
-    border-left: 4px solid #00bfff; /* Blue vertical line for structure */
-    padding: 10px; /* Inner spacing */
-    margin-bottom: 10px; /* Space below each metric block */
-    color: #ff0000; /* Red numbers or text */
+    background-color: #fbfbfb00; /* Slightly lighter than the page */
+    border-left: 4px solid #00ffe1; /* Accent line for structure */
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    color: #ff007a; /* Pink for metric values – draws attention */
+    font-family: 'IBM Plex Mono', monospace; /* Keep monospace for data */
+    font-size: 18px;
 }
 
 /* === CHART CONTAINER (Plotly graphs, etc.) === */
 [data-testid="stPlotlyChart"] {
-    background-color: #000 !important; /* Dark chart background */
-    border: 1px solid #00bfff !important; /* Blue border around chart */
-    padding: 5px;
-    border-radius: 8px; /* Rounded corners for a clean look */
+    background-color: #101010 !important;
+    border: 1px solid #333 !important; /* Subtle border */
+    padding: 10px;
+    border-radius: 10px;
 }
 
 /* === SIDEBAR SECTION === */
 section[data-testid="stSidebar"] {
-    background-color: #111111; /* Slightly different black to distinguish sidebar */
-    border-right: 2px solid #ff0000; /* Red vertical bar separating sidebar */
+    background-color: #111; /* Slightly different black to separate from main */
+    border-right: 2px solid #222; /* Subtle division */
+    padding: 10px;
 }
 
 /* Sidebar headings */
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2 {
-    color: #00bfff; /* Blue sidebar titles */
+    color: #00ffe1; /* Keep sidebar headings in cyan */
+    font-family: 'Inter', sans-serif;
 }
 
 /* === ALERT BOXES (st.error, st.warning, st.success) === */
 .stAlert {
-    background-color: #1a0000 !important; /* Deep red-black background */
-    color: #ff4d4d !important; /* Bright soft red text */
-    border-left: 4px solid #ff0000; /* Left red border for attention */
+    background-color: #2a0000 !important; /* Dark red-black background */
+    color: #ff4d4d !important; /* Light red text */
+    border-left: 4px solid #ff0000; /* Strong red left border */
     font-weight: bold;
+    padding: 10px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+}
+
+/* === TOOLTIP OR SMALL TEXT === */
+small {
+    color: #888; /* Subtle gray for less-important info */
+    font-size: 12px;
+}
+
+/* === LINKS === */
+a {
+    color: #00ffe1;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: #ff007a; /* Pink on hover for pop */
 }
 
