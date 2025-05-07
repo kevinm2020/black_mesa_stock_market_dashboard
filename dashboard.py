@@ -486,7 +486,7 @@ elif mode == "Sector Performance":
 
     #--------------------------------------------------------------------Economic Indicators Start-------------------------------
     st.subheader("MacroEconomics")
-    source("Federal Reserve Bank of St.Louis")
+    st.write("Federal Reserve Bank of St.Louis")
    
     FRED_API_KEY = "4de30e46287d5d259fd7e0901ef91c59"
     fred = Fred(api_key=FRED_API_KEY)
@@ -799,7 +799,7 @@ elif mode == "Stock Alerts":
 
                     if phone:
                         print(f"📱 Sending SMS to: {phone}")
-                        send_sms_notification(phone, ticker, alert_type, current_value, f"{direction} {threshold}")
+                        #send_sms_notification(phone, ticker, alert_type, current_value, f"{direction} {threshold}")
 
                     cursor.execute("UPDATE alerts SET status='triggered' WHERE id=?", (id,))
                     conn.commit()
