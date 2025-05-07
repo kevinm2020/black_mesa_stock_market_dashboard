@@ -15,7 +15,7 @@ import time
 import requests #for the news feature
 import sqlite3          #databse alerts?
 from streamlit_autorefresh import st_autorefresh
-
+import numpy as np
 from fredapi import Fred    #for economic and social indicators
 from ta.momentum import RSIIndicator
 from twilio.rest import Client
@@ -28,21 +28,6 @@ conn = sqlite3.connect("alerts.db", check_same_thread=False)
 cursor = conn.cursor()
 
 #cursor.execute("DROP TABLE IF EXISTS alerts")
-#cursor.execute("""
-#CREATE TABLE alerts (
- #   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  #  ticker TEXT,
-   # type TEXT,
-    #threshold REAL,
-    #direction TEXT,
-    #email TEXT,
-    #phone TEXT,
-    #timestamp TEXT,
-    #status TEXT DEFAULT 'pending'
-#)
-#""")
-#conn.commit()
-#print("✅ alerts table created.")
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS alerts (
@@ -121,22 +106,6 @@ ENTERTAINMENT_KEYWORDS = [
 
 #-------------------------------------------End Credentials Section-------------------
 
-def send_sms_notification(to_phone, ticker, alert_type, current_value, threshold):
-    print(f"!!!!!!!  SENDING SMS TO {to_phone}")
-    try:
-        client = Client(account_sid, auth_token)
-        body = "f{ticker} ALERT: {alert_type} triggered.\nValue: {current_value}\nThreshold: {threshold}"
-        message = client.messages.create(
-            body="Your stock alert has been triggered!",
-            from_= twilio_number,
-            to=to_phone
-        )
-        print(f"!!!SMS Sent: {message.sid}")
-    except Exception as e:
-        print(f"!!!SMS Failed: {e}")
-
-
-
 #-----------------------------------------End SMS Function------------------------------------------
 
 #https://api.stlouisfed.org/fred/series/observations?series_id=UNRATE&api_key=4de30e46287d5d259fd7e0901ef91c59&file_type=json
@@ -166,20 +135,18 @@ with st.sidebar:
     st.markdown("Directory")
     if st.button("Home"):
         set_mode("Home")
+    if st.button("401(k) Strategies"):
+        set_mode("401(k) Strategies")
     if st.button("Culture and Capital"):
         set_mode("Culture and Capital")
     if st.button("Stock Database"):
-        set_mode("Company Profile")
+        set_mode("Stock Database")
+    if st.button("Market Insights"):
+        set_mode("Market Insights")
     if st.button("Sector Performance"):
         set_mode("Sector Performance")
-    if st.button("Market Insights"):
-        set_mode("Market Insights - BETA")
-    if st.button("401(k)-optomizer"):
-        set_mode("401k Optomizer - BETA")
     if st.button("Stock Alerts"):
         set_mode("Stock Alerts")
-    if st.button("My Portfolio"):
-        set_mode("My Portfolio")
     if st.button("Admin"):
         set_mode("Admin")
 
@@ -342,20 +309,38 @@ mode = st.session_state.mode
 if mode == "Home":
 
     st.image("images/austin_syline.jpg", use_container_width=True)  # This stretches the image to the container width
-    st.title("Welcome to The Black Mesa Market Dashboard")
+    st.title("Welcome to Team Austin Market Dashboard")
+    st.subheader("Helping Austin locals and Texans take control of their financial future — from retirement to tax strategies and everything in between.")
     
     
-    st.subheader("Read our Financial Insights. Once you are ready to take the next step, contact a Fidicuary Financial Advisor today for a complementary consulation.")
+    st.subheader("Read our Financial Insights on the sidebar. Our tech foward insights give your account an edge and clarity over a typical plan provider advisor. Contact a Fidicuary Financial Advisor today for a complementary consulation.")
+    st.subheader("Today, Tomorrow, Togehter.")
     st.write("                   ")
-    if st.button("📅 Book a Free Financial Advisor Consultation"):
-        st.markdown("[Click here to schedule a 15-minute call](https://calendly.com/black-mesa-softwar3)", unsafe_allow_html=True)
+    st.write("                   ")
 
+    #button
+    st.markdown(
+    """
+    <div style="text-align: center;">
+        <a href="https://calendly.com/black-mesa-softwar3" target="_blank">
+            <button style="padding: 0.75em 1.5em; font-size: 1em; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                📅 Book a Free Financial Advisor Consultation
+            </button>
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+
+    )
+
+    st.subheader("Why Me?")
+    st.write("I am not just pushing product. I built the tools, insights, and a platform that shows real transparency and care for my clients. I want to prove my value with this website before asking for a meeting. I want to give people the power to make smarter decisions today.")
 
 #-----------------------------Credits------------------------------------------------
 
     st.subheader("Credits")
-    st.write("Devloped by Kevin Martinez - 2025")
-    st.write("Contact Email : black.mesa.softwar3@gmail.com")
+    st.write("Devloped by Kevin Martinez - 2025 for Texas Finanancial Advisors")
+    st.write("Contact Email : kevin.martinez@texasfa.com")
     
 #----------------------------------------end home mode-------------------------------------------
 
@@ -383,8 +368,15 @@ elif mode == "Admin":
 #-------------------end Admin mode---------------------------
 
 
-elif mode == "Company Profile":
-    st.subheader("Company Profile")
+elif mode == "Stock Database":
+
+    st.image("images/stocks.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.subheader("Welcome to the Stock Database")
+    st.divider()
+    st.write("Enter any Ticker and get Key Indicators as well as Trending Company News")
+    st.write("Information is Power at Team Austin")
+    st.divider()
+
     ticker = st.text_input("Enter Ticker Symbol (e.g., AAPL)", value="AAPL")
     if ticker:
         profile = get_company_profile(ticker)
@@ -477,8 +469,10 @@ elif mode == "Company Profile":
     #------------------------------------------------------------------------End news feature-----------------------------------------
 
 elif mode == "Sector Performance":
-    st.subheader("Sector Performance")
-
+    st.image("images/sectors.jpg", use_container_width=True)  # This stretches the image to the container width
+    st.subheader("Welcome to the Sector Performance")
+    st.subheader("Track Sector Performance Like a Pro")
+    st.write("Get the macro view of how each sector is moving — and why it matters.")
     st.write("Data since last business day close")
 
     df_sectors = get_sector_performance()
@@ -492,6 +486,7 @@ elif mode == "Sector Performance":
 
     #--------------------------------------------------------------------Economic Indicators Start-------------------------------
     st.subheader("MacroEconomics")
+    source("Federal Reserve Bank of St.Louis")
    
     FRED_API_KEY = "4de30e46287d5d259fd7e0901ef91c59"
     fred = Fred(api_key=FRED_API_KEY)
@@ -554,15 +549,19 @@ elif mode == "Sector Performance":
 
     with col1:
         st.metric("📉 Unemployment Rate", f"{unemp_val:.1f}%", f"{unemp_delta:+.2f}%")
+        st.write("Why it matters: A signal of workforce strength and corporate health")
 
     with col2:
         st.metric("🛍️ Retail Sales", f"${retail_val:.0f}M", f"{retail_delta:+,.0f}")
+        st.write("Why it matters: A direct gauge of consumer demand and spending power")
 
     with col3:
         st.metric("⛽ Avg Gas Price", f"${gas_val:.2f}/gal", f"{gas_delta:+.2f}")
+        st.write("Why it matters: Impacts shipping, travel, and inflation")
 
     with col4:
         st.metric("🚗 Car Sales", f"{car_val:.2f}M units", f"{car_delta:+.2f}")
+        st.write("Why it matters: Confidence indicator of big-ticket spending and credit access")
 
     # Optional: full chart section
     with st.expander("📈 See Historical Trends"):
@@ -574,8 +573,10 @@ elif mode == "Sector Performance":
 
     #--------------------------------------------------------------------End Economic Indicators End-------------------------------
 
-elif mode == "Market Insights - BETA":
-    st.subheader("Analytical and AI powered Market Predictions and Projections")
+elif mode == "Market Insights":
+
+    st.subheader("Welcome to Market Insights")
+    st.subheader("Sharp analysis. Big-picture trends. No fluff. Know where the market is — and where it might be headed.")
 
     st.subheader("🏅 Top 10 Gainers Today")
     with st.spinner("Loading top gainers..."):
@@ -587,79 +588,60 @@ elif mode == "Market Insights - BETA":
     else:
         st.warning("No gainers data available at the moment.")
 
+    st.divider()
+
     st.subheader("Market Concensus - Buy? Hold? Sell?")
+    st.write("See what other's are saying about a particular Stock?")
+    st.write("Source: Finhub")
 
     #-------------------------------------------------Analysts Concensus------------------------------
 
+    #ticker = st.text_input("Enter Ticker Symbol (e.g., AAPL)", value="AAPL")
     ticker = st.text_input("Enter Ticker Symbol (e.g., AAPL)", value="AAPL")
 
     FINNHUB_API_KEY = "cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80"
-
-    url =  f"https://finnhub.io/api/v1/stock/recommendation?symbol={ticker}&token=cvrb3r1r01qp88cpcn7gcvrb3r1r01qp88cpcn80" 
+    url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={ticker}&token={FINNHUB_API_KEY}" 
     response = requests.get(url)
 
     if response.status_code == 200:
         data = response.json()
         if data:
-            latest = data[0]
-            st.subheader(f"🧭 Analyst Ratings for {ticker.upper()} ({latest['period']})")
+            # Convert JSON to DataFrame
+            df = pd.DataFrame(data)
+            df['period'] = pd.to_datetime(df['period'])
+            df = df.sort_values('period')  # Oldest to newest
 
-            col1, col2, col3, col4, col5 = st.columns(5)
+            # Optional: convert to human-readable string
+            df['Period Label'] = df['period'].dt.strftime("%b %Y")
 
-            with col1:
-                st.metric("📈 Buy", latest['buy'])
+            st.subheader(f"🧭 Analyst Ratings for {ticker.upper()} (Historical Trend)")
 
-            with col2:
-                st.metric("📊 Hold", latest['hold'])
-
-            with col3:
-                st.metric("📉 Sell", latest['sell'])
-
-            with col4:
-                st.metric("✅ Strong Buy", latest['strongBuy'])
-
-            with col5:
-                st.metric("❌ Strong Sell", latest['strongSell'])
-
-
-            import plotly.graph_objects as go
-            
-            score = latest['strongBuy'] * 2 + latest['buy'] - latest['sell'] - latest['strongSell']
-
-            fig = go.Figure(go.Indicator(
-                mode = "gauge+number",
-                value = score,
-                title = {'text': f"{ticker.upper()} Sentiment Score"},
-                gauge = {
-                    'axis': {'range': [-10, 10]},
-                    'bar': {'color': "green" if score > 0 else "red"},
-                    'steps': [
-                        {'range': [-10, -5], 'color': "maroon"},
-                        {'range': [-5, 0], 'color': "orange"},
-                        {'range': [0, 5], 'color': "lightgreen"},
-                        {'range': [5, 10], 'color': "green"}
-                    ]
-                }
-            ))
-
+            # Line chart of ratings
+            fig = px.line(
+                df,
+                x='Period Label',
+                y=['strongBuy', 'buy', 'hold', 'sell', 'strongSell'],
+                labels={
+                    'value': 'Number of Ratings',
+                    'Period Label': 'Period'
+                },
+                title=f"Analyst Recommendation Trends for {ticker.upper()}",
+                markers=True
+            )
+            fig.update_layout(legend_title_text='Rating Type')
             st.plotly_chart(fig)
 
-            # Interpret the sentiment score
-            if score >= 40:
-                sentiment_label = "🔰 Strong Buy — Analysts are highly bullish."
-            elif score >= 20:
-                sentiment_label = "🟢 Buy — Most analysts lean positive."
-            elif score > -20:
-                sentiment_label = "🟡 Hold — Mixed sentiment or cautious outlook."
-            elif score > -40:
-                sentiment_label = "🔴 Sell — Analysts see downside risk."
-            else:
-                sentiment_label = "⚠️ Strong Sell — Broad consensus to avoid or exit."
+            # Show latest values as metrics (optional)
+            latest = df.iloc[-1]
+            pretty_period = latest['period'].strftime("%B %Y")
+            st.markdown(f"### 📊 Latest Consensus Snapshot ({pretty_period})")
 
-            # Display interpretation
-            st.markdown(f"### Analyst Consensus: **{sentiment_label}**")
-
-            st.write("Source: Finhub")
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1: st.metric("✅ Strong Buy", latest['strongBuy'])
+            with col2: st.metric("📈 Buy", latest['buy'])
+            with col3: st.metric("📊 Hold", latest['hold'])
+            with col4: st.metric("📉 Sell", latest['sell'])
+            with col5: st.metric("❌ Strong Sell", latest['strongSell'])
 
         else:
             st.info("No analyst recommendations available.")
@@ -673,7 +655,7 @@ elif mode == "Market Insights - BETA":
     #-------------------------------------------------Analysyt Consensus Feature End------------------------------
 
 elif mode == "Stock Alerts":
-
+    st.subheader("Welcome to Stock Alerts")
     st.subheader("Get instant SMS/Email Notifications on Stock breakthroughs")
 
     #----------------------------------------------------Price Alert Notification-------------------------------------
@@ -838,9 +820,10 @@ elif mode == "Stock Alerts":
         conn.close()  
 
 elif mode == "Culture and Capital":
-    st.subheader("Culture and Capital")
-    st.write("  To be an Austinite is to be inherently cool and in the know — here’s what the cool crowd is tracking in Music, Film, Fashion and Sports")
-    st.write("  Black Mesa articles updated Weekly")
+    st.subheader("Welcome to Culture and Capital")
+    st.write("  To be an Austinite is to be effortlessly cool — and plugged in.")
+    st.write("This section tracks what the tastemakers are watching, listening to, and betting on in music, media, entertainment, and sports — because the culture is the economy.")
+    st.write("  Team Austin articles updated Weekly")
 
     st.subheader("Music")
     st.image("images/music.jpg", use_container_width=True)  # This stretches the image to the container width
@@ -852,13 +835,7 @@ elif mode == "Culture and Capital":
     col1, col2 = st.columns([2.3,1.7])
 
     with col1:
-        music_data = [
-            {'Rank': 1, 'Title': 'Luther', 'Artist': 'Kendrick Lamar & SZA', 'Last Week': 1, 'Peak Position': 1},
-            {'Rank': 2, 'Title': 'Die With A Smile', 'Artist': 'Lady Gaga & Bruno Mars', 'Last Week': 2, 'Peak Position': 1},
-            {'Rank': 3, 'Title': 'Ordinary', 'Artist': 'Alex Warren', 'Last Week': 5, 'Peak Position': 3},
-            {'Rank': 4, 'Title': 'Nokia', 'Artist': 'Drake', 'Last Week': 3, 'Peak Position': 2},
-            {'Rank': 5, 'Title': 'A Bar Song (Tipsy)', 'Artist': 'Shaboozey', 'Last Week': 6, 'Peak Position': 1},
-        ]
+        music_data = [{'Rank': 1, 'Title': 'Luther', 'Artist': 'Kendrick Lamar & SZA', 'Last Week': 1, 'Peak Position': 1}, {'Rank': 2, 'Title': 'Ordinary', 'Artist': 'Alex Warren', 'Last Week': 3, 'Peak Position': 2}, {'Rank': 3, 'Title': 'Die With A Smile', 'Artist': 'Lady Gaga & Bruno Mars', 'Last Week': 2, 'Peak Position': 1}, {'Rank': 4, 'Title': 'Nokia', 'Artist': 'Drake', 'Last Week': 4, 'Peak Position': 2}, {'Rank': 5, 'Title': 'A Bar Song (Tipsy)', 'Artist': 'Shaboozey', 'Last Week': 5, 'Peak Position': 1}]
         display_billboard_chart(music_data)
 
     with col2:
@@ -872,16 +849,16 @@ elif mode == "Culture and Capital":
         else:
             st.error("Failed to load music stock prices.")
 
-    st.subheader("On Music by BLACK MESA MUSIC Coverage")
-    st.write("Article Here")
+    st.subheader("On Music by Team Austin MUSIC Coverage")
+    st.write("Article Coming Soon")
     st.divider()    
 
 
-    st.subheader("Film/Television")
+    st.subheader("Entertainment : Film, TV, Celebraties, Gossip")
     st.image("images/film.jpg", use_container_width=True)  # This stretches the image to the container width
     st.divider()
 
-    st.subheader("🎥 Top 5 Trending Movie/TV Articles")
+    st.subheader("🎥 Top 5 Trending Entertainment Articles")
 
     col1, col2 = st.columns([2,2])
 
@@ -913,8 +890,8 @@ elif mode == "Culture and Capital":
             st.error("Failed to load sport stock prices.")
 
     
-    st.subheader("On FILM by BLACK MESA ENTERTAINMENT Coverage")
-    st.write("Article Here")
+    st.subheader("On FILM by Team Austin ENTERTAINMENT Coverage")
+    st.write("Article Coming Soon")
     st.divider()  
 
 
@@ -954,10 +931,234 @@ elif mode == "Culture and Capital":
 
     st.divider()
 
-    st.subheader("On SPORTS by BLACK MESA SPORTS Coverage")
-    st.write("Article Here")
+    st.subheader("On SPORTS by Team Austin SPORTS Coverage")
+    st.write("Article Coming Soon")
     st.divider()
 
+elif mode == "401(k) Strategies":
+    st.image("images/american.jpg", use_container_width=True)  # This stretches the image to the container width
+
+    def get_etf_data(ticker):
+        url = f"https://financialmodelingprep.com/api/v3/quote/{ticker}?apikey={FMP_API_KEY}"
+        response = requests.get(url)
+        data = response.json()
+        if data:
+            return data[0]
+        return None
+
+    # Fetch the data for ETFs
+    def get_optimized_funds():
+        # Define the list of low-cost ETFs
+        etf_tickers = {
+            "Equity": "VTI",               # Total Market ETF
+            "International": "VXUS",       # International ETF
+            "Bond": "BND",                 # Bond ETF
+            "Cash": "CASHX",               # Stable Value Fund
+        }
+        
+        # Fetch the latest data for each ETF
+        optimized_funds = {}
+        for asset_class, ticker in etf_tickers.items():
+            data = get_etf_data(ticker)
+            if data:
+                optimized_funds[asset_class] = {
+                    "Fund": data['name'],
+                    "Ticker": data['symbol'],
+                    "Expense Ratio": data['price'],  # Assume we are using price as an approximation for expense ratio
+                    "Current Price": data['price']
+                }
+            else:
+                optimized_funds[asset_class] = {
+                    "Fund": f"{asset_class} ETF",
+                    "Ticker": ticker,
+                    "Expense Ratio": 0.05,  # Default value if data is not available
+                    "Current Price": 0
+                }
+        
+        return optimized_funds
+
+    # Get the optimized funds based on FMP API data
+    optimized_funds = get_optimized_funds()
+    st.subheader("Take Back Control of Your 401(k): Break Free from Generic Funds, Cut Hidden Fees, and Unlock Higher Returns.")
+    st.subheader("Your 401(k) is part of the American Dream — don’t let it get lost in the system. " \
+    "Too many hard-working people are stuck in generic target date funds, paying high fees for mediocre results. " \
+    "That’s not freedom — that’s missed opportunity. ")
+    st.subheader(
+    "You’ve worked too hard to hand your future over to a cookie-cutter plan. " \
+    "With the right strategy, you can cut costs, boost performance, and take real ownership of your retirement. " \
+    "Let’s put your money back to work — for you.")
+
+    st.divider()
+    st.write("                            ")
+    st.write("                            ")
+
+    st.subheader("Meet Ellie")
+    st.subheader("Ellie, like most Americans was stuck in a underperforming, untailored, default 401(k) plan")
+    st.write("                            ")
+    st.write("                            ")
+
+    # --- Step 1: Load CSV directly ---
+    st.header("Ellie's Previous 401(k) Holdings")
+
+    # Replace this path with the actual path to your CSV file
+    uploaded_file = "401(k)_optomizer/401(k)_csv/sample_CSV.csv"  
+
+    try:
+        fund_df = pd.read_csv(uploaded_file)
+        #st.success("401(k) holdings loaded successfully.")
+        #st.dataframe(fund_df)
+    except FileNotFoundError:
+        st.error("CSV file not found. Please make sure the file exists at the specified path.")
+
+    
+    if uploaded_file:
+        st.write("Ellie's Previous Portfolio", fund_df)
+
+        # --- Automate classification of funds ---                  #basic keyword matching to categorize the type of fund
+        def classify_asset_class(name):
+            name = name.lower()
+            if any(x in name for x in ["equity", "stock", "s&p", "index", "growth", "value"]):
+                return "Equity"
+            elif any(x in name for x in ["bond", "income", "fixed"]):
+                return "Bond"
+            elif any(x in name for x in ["intl", "international", "global", "emerging"]):
+                return "International"
+            elif any(x in name for x in ["cash", "stable", "money"]):
+                return "Cash"
+            return "Other"                  #catch all i fnothing matches
+        
+        #new column to the datafram classifying each fund
+        fund_df["Asset Class"] = fund_df["Fund Name"].apply(classify_asset_class)
+
+    #step 2: Get Expense Ratio
+
+    #calculate total weighted expense ratio of the uploaded portfolio
+    total_expense = sum((row["% Allocation"] / 100) * row["Expense Ratio"] for idx, row in fund_df.iterrows())
+    st.metric("💸 Total Weighted Expense Ratio", f"{total_expense:.2%}")
+
+
+    st.write("Total Weighted Expense Ratio is calculated by expense ratio of each fund, weighted by their allocation.")
+    st.subheader("Ellie's Portfolio Earnings were being cut by 6.30% !")
+
+    st.write("                            ")
+    st.write("                            ")
+    st.write("                            ")
+
+    # --- Risk Profile Inputs ---
+    st.subheader("Play with Ellie's Portfolio, Enter your Personalized Risk Inputs too see what it could mean for your 401(k)")
+    age = st.slider("Your Age", 20, 70, 45)     #user's age
+    retirement_age = st.slider("Desired Retirement Age", 50, 75, 65)  #desired retirment
+    years_to_retirement = retirement_age - age
+    balance = st.number_input("Current 401(k) Balance ($)", min_value=1000, value=10000, step=1000)     #users current 401(k) balance
+    st.subheader("Change Risk Level to Run different Simulations")
+    risk_level = st.selectbox("Risk Preference", ["Conservative", "Balanced", "Aggressive"])  #user's risk tolerance
+
+    st.write("Risk based asset allocation is based of classic porfolio theory")
+    st.write("Conservative: Equity: 40, International: 10, Bond: 45, Cash: 5")
+    st.write("Balanced: Equity: 55, International: 15, Bond: 25, Cash: 5")
+    st.write("Agressive: Equity: 70, International: 20, Bond: 10, Cash: 0")
+
+    # Recommended equity allocation (based on risk)         follow classic portfolio theory
+    risk_profiles = {
+        "Conservative": {"Equity": 40, "International": 10, "Bond": 45, "Cash": 5},
+        "Balanced":     {"Equity": 55, "International": 15, "Bond": 25, "Cash": 5},
+        "Aggressive":   {"Equity": 70, "International": 20, "Bond": 10, "Cash": 0},
+    }
+    target_allocation = risk_profiles[risk_level]
+
+    # --- Step 3: Optimized Recommendations --- 
+   # Build optimized portfolio DataFrame based on profile (low-cost ETF recommendations by asset class)
+    opt_data = []
+    for asset_class, weight in target_allocation.items():
+        fund_data = optimized_funds.get(asset_class, {})
+        opt_data.append({
+            "Fund": fund_data["Fund"],
+            "Ticker": fund_data["Ticker"],
+            "Allocation": weight,
+            "Expense Ratio": fund_data["Expense Ratio"],
+            "Current Price": fund_data["Current Price"]
+        })
+    opt_df = pd.DataFrame(opt_data)
+
+    # Display the optimized portfolio
+    st.subheader("Ellie's Optimized Portfolio")
+    st.dataframe(opt_df)
+
+    # --- Allocation Pie Charts ---
+
+    st.subheader("Portfolio Allocation Comparison: Previous Vs Optomized")
+    col1, col2 = st.columns([1.5,2.5])
+    with col1:
+        st.write("**Previous Allocation**")
+        current_pie = fund_df.groupby("Asset Class")["% Allocation"].sum()
+        st.plotly_chart(go.Figure(data=[go.Pie(labels=current_pie.index, values=current_pie.values)]))
+    with col2:
+        st.write("**Optimized Allocation**")
+        st.plotly_chart(go.Figure(data=[go.Pie(labels=opt_df["Fund"], values=opt_df["Allocation"])]))
+
+    st.markdown("---")
+
+    # --- Growth projection chart ---
+    st.subheader("Projected Growth Over 25 Years")
+    years = np.arange(0, 26)        # range
+
+    # Calculate the weighted return for the current portfolio
+    fund_df["Expected Return"] = fund_df["Asset Class"].map({
+        "Equity": 0.07,
+        "International": 0.06,
+        "Bond": 0.035,
+        "Cash": 0.015
+    })
+    weighted_return_current = (fund_df["% Allocation"] / 100 * fund_df["Expected Return"]).sum()
+
+    # Calculate the weighted return for the optimized portfolio
+    opt_df["Expected Return"] = opt_df["Fund"].map({
+        "Total Market ETF": 0.07,
+        "International ETF": 0.06,
+        "Bond ETF": 0.035,
+        "Stable Value Fund": 0.015
+    })
+
+    # Adjusting for average expense ratio
+    weighted_return_opt = (opt_df["Allocation"] / 100 * opt_df["Expected Return"]).sum()
+
+    # Calculate net growth rate for both portfolios
+    net_rate_current = weighted_return_current - total_expense  # Current portfolio net rate
+    net_rate_opt = weighted_return_opt - (opt_df["Expense Ratio"].mean() / 100)  # Optimized portfolio net rate
+
+    # Prevent a very small or negative growth rate by ensuring minimum growth
+    net_rate_current = max(net_rate_current, 0.01)  # Minimum 1% growth for current portfolio
+    net_rate_opt = max(net_rate_opt, 0.02)          # Minimum 2% growth for optimized portfolio
+
+    # Project growth over time (25 years)
+    curr_growth = balance * (1 + net_rate_current) ** years
+    opt_growth = balance * (1 + net_rate_opt) ** years
+
+    # Display the projections
+    st.line_chart(pd.DataFrame({
+        "Current (net)": curr_growth,
+        "Optimized (net)": opt_growth
+    }, index=years))  # Display both projections
+
+    st.subheader("Ellie's Portfolio after Enhacment: Lower expense ratio, risk-level personalization, and higher returns")
+    st.subheader("Now Ellie's Portfolio is supercharged for Retirment")
+    st.write("                            ")
+    st.write("                            ")
+    st.subheader("Book a meeting to take back control of your 401(k)!")
+    #button
+    st.markdown(
+    """
+    <div style="text-align: center;">
+        <a href="https://calendly.com/black-mesa-softwar3" target="_blank">
+            <button style="padding: 0.75em 1.5em; font-size: 1em; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                📅 Book a Free Financial Advisor Consultation
+            </button>
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+
+    )
 
 
 def run_alert_checker():
@@ -984,7 +1185,7 @@ if 'alert_thread' not in st.session_state:
 
 """
 
-Version 1.5 
-Last Update: May 5 - 2025  at 02:51PM CT  
+Version 1.7 
+Last Update: May 7 - 2025  at 01:23PM CT  
 
 """

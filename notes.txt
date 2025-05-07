@@ -1,3 +1,114 @@
 with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login("black.mesa.softwar3@gmail.com", "opdj licp cgia ohnw")  # App password is safer than main password
             smtp.send_message(msg)
+
+
+How can i display this data using Streamlit
+
+st.subheader("Culture and Capital")
+
+    def get_data_from_billboard():
+        charts = billboard.ChartData('hot-100')
+        for song in chart[:5]:
+            print(song.title, song.artist)
+
+        print("Done - gathered data from Billboard")
+
+
+
+okay so i have this function
+
+def getStockPrice(*tickers):
+
+    FMP_API_KEY = "ZaYQNqtexbx4FAkxSBTvrDegpa25FFv1"
+    tickers_str = ",".join(tickers)
+    url = f"https://financialmodelingprep.com/api/v3/quote/{tickers_str}?apikey={FMP_API_KEY}"
+
+    try:
+
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        for stock in data:
+            name = stock.get("name", "N/A")
+            price = stock.get("price", "N/A")
+            print(f"{name}: ${price}")
+
+    except requests.exceptions.RequestException as e:
+        print("Error fetching stock data:", e)
+
+    and i have this executing late in the program
+    st.write("Music Finance")
+    music_stock = ["SPOT", "LYV", "SONY"]
+    #music_stock_market_data = getStockPrice(music_stock)
+    #stereamlit display
+
+    how can i implement this?
+
+
+
+    Okay so here is some of my code
+
+    
+    col1, col2 = st.columns([2.5,1.5])
+
+    with col1:
+        music_data = [
+            {'Rank': 1, 'Title': 'Luther', 'Artist': 'Kendrick Lamar & SZA', 'Last Week': 1, 'Peak Position': 1},
+            {'Rank': 2, 'Title': 'Die With A Smile', 'Artist': 'Lady Gaga & Bruno Mars', 'Last Week': 2, 'Peak Position': 1},
+            {'Rank': 3, 'Title': 'Ordinary', 'Artist': 'Alex Warren', 'Last Week': 5, 'Peak Position': 3},
+            {'Rank': 4, 'Title': 'Nokia', 'Artist': 'Drake', 'Last Week': 3, 'Peak Position': 2},
+            {'Rank': 5, 'Title': 'A Bar Song (Tipsy)', 'Artist': 'Shaboozey', 'Last Week': 6, 'Peak Position': 1},
+        ]
+        display_billboard_chart(music_data)
+
+    with col2:
+        st.subheader("Music Finance")
+        st.divider()
+        music_stock = ["SPOT", "LYV", "SONY"]
+        music_stock_market_data = getStockPrice(*music_stock)
+
+        if music_stock_market_data:
+            st.table(music_stock_market_data)
+        else:
+            st.error("Failed to load music stock prices.")
+
+A: the current graphs and chart are really ugly. I need something cooler.
+
+
+
+here is my code:
+
+MOVIE_NEWS_URL = f"https://newsapi.org/v2/everything?q=movies OR tv shows&language=en&pageSize=5&sortBy=publishedAt&apiKey={NEWS_API}". 
+def fetch_entertainment_articles():
+    response = requests.get(MOVIE_NEWS_URL)
+    if response.status_code == 200:
+        return response.json().get("articles", [])
+    return []
+
+What should i change to get the right and a diverse selction on film and television related articles
+
+
+Okay so i want to start writting articles on the Culture and Capital Section. Making it not just a stock market dashboard, but also a cultural magazine. I want to write coverage weekly articles based on the music, film, fashion, and sports sections.
+What would we the best way to incorporate a drop drown article that the user can read amidst browising the page. 
+
+
+
+"""
+def send_sms_notification(to_phone, ticker, alert_type, current_value, threshold):
+    print(f"!!!!!!!  SENDING SMS TO {to_phone}")
+    try:
+        client = Client(account_sid, auth_token)
+        body = "f{ticker} ALERT: {alert_type} triggered.\nValue: {current_value}\nThreshold: {threshold}"
+        message = client.messages.create(
+            body="Your stock alert has been triggered!",
+            from_= twilio_number,
+            to=to_phone
+        )
+        print(f"!!!SMS Sent: {message.sid}")
+    except Exception as e:
+        print(f"!!!SMS Failed: {e}")
+
+
+"""

@@ -9,7 +9,7 @@ Black Mesa Stock Market Dashboard - CSS Style
 /* === GLOBAL STYLING: Applies to the whole app === */
 body {
     background-color: #0d0d0d; /* Deep black background for terminal vibe */
-    color: #0d0d0d; /* Grey text */
+    color: #e0e0e0; /* Grey text */
     accent-color: #ff007a;
     font-family: 'Inter', 'Segoe UI', sans-serif; /* Clean modern sans-serif for readability */
     line-height: 1.6; /* Slight line spacing improves reading experience */
@@ -28,7 +28,8 @@ h1, h2, h3, h4, h5 {
 
 /* === PARAGRAPH TEXT & MARKDOWN === */
 p, .stMarkdown {
-    color: #cccccc; /* Softer gray to distinguish from headers */
+    color: #8c8c8c; /* slightly darker, more readable */
+    font-weight: 600;
     font-size: 16px;
     margin-bottom: 10px;
 }
@@ -52,7 +53,7 @@ button:hover {
 
 /* === TEXT INPUTS (text fields, email, phone, etc.) === */
 input, textarea {
-    background-color: #e0e0e0 !important; /* Very dark background */
+    background-color: #8b8888 !important; /* Very dark background */
     color: #00ffe1 !important; /* Cyan text input */
     border: 1px solid #00ffe1 !important; /* Cyan border */
     border-radius: 4px;
