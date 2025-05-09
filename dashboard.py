@@ -881,7 +881,7 @@ elif mode == "Culture and Capital":
     with col2:
         st.subheader("Entertainment Finance")
         
-        sport_stock = ["NFLX", "DIS", "WBD", "PARA", "CMCSA", "AMCX", "IMAX"]
+        sport_stock = ["TTWO", "NFLX", "DIS", "WBD", "PARA", "CMCSA", "AMCX", "IMAX"]
         sport_stock_market_data = getStockPrice(*sport_stock)
 
         if sport_stock_market_data:
